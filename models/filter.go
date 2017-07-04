@@ -41,7 +41,7 @@ func NewFilter() FilterIface {
 func (s *Query) Group(name string) FilterIface {
 	var expr *expression
 
-	if expr = s.expression("GROUP BY"); expr == nil {
+	if expr = s.Expression("GROUP BY"); expr == nil {
 		expr = &expression{
 			name:       "GROUP BY",
 			glue:       ",",
@@ -61,7 +61,7 @@ func (s *Query) Group(name string) FilterIface {
 func (s *Query) Limit(linit, offset uint64) FilterIface {
 	var expr *expression
 
-	if expr = s.expression("LIMIT"); expr == nil {
+	if expr = s.Expression("LIMIT"); expr == nil {
 		expr = &expression{
 			name:       "LIMIT",
 			glue:       ",",
@@ -111,7 +111,7 @@ func (s *Query) Order(name string, order bool) FilterIface {
 		ascDesc = "DESC"
 	}
 
-	if expr = s.expression("ORDER"); expr == nil {
+	if expr = s.Expression("ORDER"); expr == nil {
 		expr = &expression{
 			name:       "ORDER",
 			glue:       ",",
@@ -131,7 +131,7 @@ func (s *Query) Order(name string, order bool) FilterIface {
 func (s *Query) Where(name string, v interface{}) FilterIface {
 	var expr *expression
 
-	if expr = s.expression("WHERE"); expr == nil {
+	if expr = s.Expression("WHERE"); expr == nil {
 		expr = &expression{
 			name:       "WHERE",
 			glue:       " AND ",
