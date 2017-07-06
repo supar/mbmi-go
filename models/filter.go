@@ -41,7 +41,7 @@ func NewFilter() FilterIface {
 func (s *Query) Group(name string) FilterIface {
 	var expr *expression
 
-	if expr = s.Expression("GROUP BY"); expr == nil {
+	if _, expr = s.Expression("GROUP BY"); expr == nil {
 		expr = &expression{
 			name:       "GROUP BY",
 			glue:       ",",
@@ -58,10 +58,10 @@ func (s *Query) Group(name string) FilterIface {
 	return s
 }
 
-func (s *Query) Limit(linit, offset uint64) FilterIface {
+func (s *Query) Limit(limit, offset uint64) FilterIface {
 	var expr *expression
 
-	if expr = s.Expression("LIMIT"); expr == nil {
+	if _, expr = s.Expression("LIMIT"); expr == nil {
 		expr = &expression{
 			name:       "LIMIT",
 			glue:       ",",
@@ -78,7 +78,7 @@ func (s *Query) Limit(linit, offset uint64) FilterIface {
 
 				}
 
-				return "", UnsupportedFilterArgument
+				return "", ErrFilterArgument
 			},
 		}
 
@@ -99,6 +99,19 @@ func (s *Query) Limit(linit, offset uint64) FilterIface {
 	return s
 }
 
+func (s *Query) Unlimit() FilterIface {
+	var (
+		expr *expression
+		idx  int
+	)
+
+	if idx, expr = s.Expression("LIMIT"); expr != nil {
+		s.expressions = append(s.expressions[:idx], s.expressions[idx+1:]...)
+	}
+
+	return s
+}
+
 func (s *Query) Order(name string, order bool) FilterIface {
 	var (
 		expr    *expression
@@ -111,7 +124,7 @@ func (s *Query) Order(name string, order bool) FilterIface {
 		ascDesc = "DESC"
 	}
 
-	if expr = s.Expression("ORDER"); expr == nil {
+	if _, expr = s.Expression("ORDER"); expr == nil {
 		expr = &expression{
 			name:       "ORDER",
 			glue:       ",",
@@ -131,7 +144,7 @@ func (s *Query) Order(name string, order bool) FilterIface {
 func (s *Query) Where(name string, v interface{}) FilterIface {
 	var expr *expression
 
-	if expr = s.Expression("WHERE"); expr == nil {
+	if _, expr = s.Expression("WHERE"); expr == nil {
 		expr = &expression{
 			name:       "WHERE",
 			glue:       " AND ",
