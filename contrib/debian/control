@@ -1,0 +1,10 @@
+Source: mbmi-go
+Priority: extra
+Section: misc
+Build-Depends: debhelper (>= 9)
+Standards-Version: @VERSION@
+Maintainer: supar <paulrez@gmail.com>
+
+Package: mbmi-go
+Architecture: amd64
+Description: Mail boxes manager inserface server
