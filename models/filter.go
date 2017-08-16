@@ -87,26 +87,28 @@ func (s *Query) Limit(limit, offset uint64) FilterIface {
 
 	expr.args = []sql.NamedArg{
 		sql.NamedArg{
-			Name:  "rowslimit",
-			Value: limit,
-		},
-		sql.NamedArg{
 			Name:  "rowsoffset",
 			Value: offset,
+		},
+		sql.NamedArg{
+			Name:  "rowslimit",
+			Value: limit,
 		},
 	}
 
 	return s
 }
 
-func (s *Query) Unlimit() FilterIface {
+func (s *Query) Un(name string) FilterIface {
 	var (
 		expr *expression
 		idx  int
 	)
 
-	if idx, expr = s.Expression("LIMIT"); expr != nil {
-		s.expressions = append(s.expressions[:idx], s.expressions[idx+1:]...)
+	if name != "" {
+		if idx, expr = s.Expression(name); expr != nil {
+			s.expressions = append(s.expressions[:idx], s.expressions[idx+1:]...)
+		}
 	}
 
 	return s
@@ -124,9 +126,9 @@ func (s *Query) Order(name string, order bool) FilterIface {
 		ascDesc = "DESC"
 	}
 
-	if _, expr = s.Expression("ORDER"); expr == nil {
+	if _, expr = s.Expression("ORDER BY"); expr == nil {
 		expr = &expression{
-			name:       "ORDER",
+			name:       "ORDER BY",
 			glue:       ",",
 			order:      4,
 			pushValues: false,

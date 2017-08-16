@@ -261,7 +261,7 @@ func (s *Controller) Spam(r *http.Request, ctx context.Context) ResponseIface {
 	}
 
 	if _, ok := r.Form["sort"]; ok {
-		flt.Order(r.Form.Get("sort"), true)
+		flt.Order(r.Form.Get("sort"), false)
 	}
 
 	if interval < 1 {

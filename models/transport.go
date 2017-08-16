@@ -29,7 +29,7 @@ func (s *DB) Transports(flt FilterIface, cnt bool) (m []*Transport, count uint64
 		switch expr.name {
 		case "WHERE":
 			expr.CbFunc(transportWhere)
-		case "ORDER":
+		case "ORDER BY":
 			expr.CbFunc(transportOrder)
 		}
 	}
@@ -80,7 +80,7 @@ func (s *DB) Transports(flt FilterIface, cnt bool) (m []*Transport, count uint64
 		query.raw = "SELECT COUNT(*) " +
 			"FROM `transport` AS `t` "
 
-		query.Unlimit()
+		query.Un("LIMIT")
 
 		if query_str, args, err = query.Compile(); err != nil {
 			return
