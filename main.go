@@ -7,50 +7,79 @@ import (
 
 func main() {
 	var (
-		err        error
-		controller *Controller
-		log        *Log
-		router     *Router
+		env    *Bus
+		router *Router
 	)
 
 	// Read flags
 	flag.Parse()
 	// Create logger
-	log = NewLogger()
+	env = &Bus{
+		LogIface: NewLogger(),
+	}
 	// Print version if flag passed
-	showVersion(log)
+	showVersion(env)
 
-	if controller, err = NewController(log); err != nil {
-		log.Fatal(err)
+	if err := env.openDB(nil); err != nil {
+		env.Fatal(err)
 	}
 
 	// Create router
 	router = NewRouter()
 
 	// Login
-	router.Handle("PUT", "/login", controller.Handle(controller.Login))
+	router.Handle("POST", "/login", NewHandler(
+		Login,
+		env,
+	))
+
+	// Get mail aliases
+	router.Handle("GET", "/aliases/groups", NewHandler(
+		Protect(aliasGroupWrap(Aliases)),
+		env,
+	))
+	router.Handle("GET", "/aliases", NewHandler(
+		Protect(Aliases),
+		env,
+	))
+
 	// Get users (mailboxes)
-	router.Handle("GET", "/users", controller.Handle(controller.Users))
-	router.Handle("GET", "/user/:uid", controller.Handle(controller.User))
+	router.Handle("GET", "/users", NewHandler(
+		Protect(Users),
+		env,
+	))
+	router.Handle("GET", "/user/:uid", NewHandler(
+		Protect(User),
+		env,
+	))
 
 	// Spamm
-	router.Handle("GET", "/spam", controller.Handle(controller.Spam))
+	router.Handle("GET", "/spam", NewHandler(
+		Protect(Spam),
+		env,
+	))
 
 	// Transport
-	router.Handle("GET", "/transports", controller.Handle(controller.Transports))
-	router.Handle("GET", "/transport/:tid", controller.Handle(controller.Transports))
+	router.Handle("GET", "/transports", NewHandler(
+		Protect(Transports),
+		env,
+	))
+	router.Handle("GET", "/transport/:tid", NewHandler(
+		Protect(Transport),
+		env,
+	))
 
 	// Handle NotFound
-	router.NotFound = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.Notice("%s: 404 (Not Found)", r.Context().Value("Id"))
-		http.NotFound(w, r)
-	})
+	if ASSETSPATH != "" {
+		router.NotFound = http.FileServer(http.Dir(ASSETSPATH))
+
+		env.Notice("Using file server with public=%s for unknown routes", ASSETSPATH)
+	}
 
 	http.ListenAndServe(SERVERADDRESS, Middlewares(
 		router,
-		JWT(log),
-		Assets(ASSETSPATH),
-		// Keep this middleware last
-		RequestId(log),
+		JWT(env),
+		verbose(env),
+		RequestId(),
 	))
 }
