@@ -15,11 +15,11 @@ type Token struct {
 }
 
 type IdentityIface interface {
-	Identity() (*models.User, error)
+	Identity() int64
 }
 
 type TokenClaims struct {
-	Uid uint `json:"uid"`
+	Uid int64 `json:"uid"`
 	jwt.StandardClaims
 }
 
@@ -54,8 +54,12 @@ func (s *Token) Parse() (err error) {
 	return
 }
 
-func (s *Token) Identity() (u *models.User, err error) {
-	return
+func (s *Token) Identity() int64 {
+	if s.t != nil {
+		return s.t.Claims.(*TokenClaims).Uid
+	}
+
+	return -1
 }
 
 func (s *Token) Valid() bool {
