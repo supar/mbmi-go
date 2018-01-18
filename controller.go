@@ -2,137 +2,237 @@ package main
 
 import (
 	"context"
-	"github.com/supar/dsncfg"
 	"mbmi-go/models"
 	"net/http"
 	"strconv"
-	"strings"
 )
 
-type Controller struct {
-	LogIface
-	models models.Datastore
-}
+type Controller func(*http.Request, Enviroment) ResponseIface
 
-func NewController(log LogIface) (c *Controller, err error) {
-	var (
-		dsn = &dsncfg.Database{
-			Host:     DBADDRESS,
-			Name:     DBNAME,
-			User:     DBUSER,
-			Password: DBPASS,
-			Type:     "mysql",
-			Parameters: map[string]string{
-				"charset":   "utf8",
-				"parseTime": "True",
-				"loc":       "Local",
-			},
-		}
-		m models.Datastore
-	)
-
-	if m, err = models.Init(dsn); err != nil {
-		return
-	}
-
-	c = &Controller{
-		LogIface: log,
-		models:   m,
-	}
-
-	return
-}
-
-func (s *Controller) Handle(fn func(*http.Request, context.Context) ResponseIface) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+// Create http handler
+func NewHandler(fn Controller, env Enviroment) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var (
-			err  error
-			data []byte
-			res  ResponseIface
-
-			ctx = r.Context()
+			data     []byte
+			response ResponseIface
 		)
 
-		ctx = context.WithValue(ctx, "Query", r.URL.Query())
-
-		res = fn(r, ctx)
-		data, err = res.Get()
-
-		if err != nil {
-			s.Error("%s: %s", ctx.Value("Id"), err.Error())
+		if response = fn(r, env); response == nil {
+			return
 		}
 
-		if !res.Ok() {
-			http.Error(w, "", res.Status())
+		data, _ = response.Get()
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+
+		if !response.Ok() {
+			w.WriteHeader(response.Status())
 		}
 
 		w.Write(data)
+	})
+}
+
+// Wrap Controller function to prevent unauthorized requests
+func Protect(fn Controller) Controller {
+	return func(r *http.Request, env Enviroment) ResponseIface {
+		var (
+			id = r.Context().Value("Id").(string)
+			tk = r.Context().Value("Token").(*Token)
+		)
+
+		if !tk.Valid() {
+			env.Error("%s: Unauthorized, token is nil or not valid", id)
+
+			return NewResponse(&Error{
+				Code:    401,
+				Message: http.StatusText(401),
+				Title:   http.StatusText(401),
+			})
+		}
+
+		env.Debug("%s: Token is valid", id)
+
+		return fn(r, env)
 	}
 }
 
 // Authorization
-func (s *Controller) Login(req *http.Request, ctx context.Context) (resp ResponseIface) {
+func Login(r *http.Request, env Enviroment) ResponseIface {
 	var (
-		claims        TokenClaims
-		err           error
-		login, domain string
-		m             []*models.User
-		token         *Token
+		claims TokenClaims
+		err    error
+		model  []*models.User
+		token  *Token
 
-		flt    = models.NewFilter()
-		email  = req.FormValue("email")
-		id     = ctx.Value("Id")
-		passwd = req.FormValue("password")
+		flt  = models.NewFilter()
+		form = models.User{}
+		id   = r.Context().Value("Id")
 	)
 
-	if em := strings.Split(email, "@"); len(em) != 2 {
-		s.Error("%s: Can't parse email=(%s)", id, email)
+	if err = parseFormTo(r, &form); err != nil {
+		env.Error("%s, %s", id, err.Error())
 
-		resp = NewResponseError(401, nil)
-		return
-	} else {
-		login = em[0]
-		domain = em[1]
+		return NewResponse(&Error{
+			Code:    500,
+			Message: "cannot parse form data",
+			Title:   http.StatusText(500),
+		})
 	}
 
-	if login == "" ||
-		domain == "" ||
-		passwd == "" {
+	if err = form.SplitEmail(); err != nil {
+		env.Error("%s, email %s", id, err.Error())
 
-		resp = NewResponseError(401, nil)
-		return
+		return NewResponse(&Error{
+			Code:    500,
+			Message: "cannot parse form data",
+			Title:   http.StatusText(500),
+		})
 	}
 
-	flt.Where("login", login).
-		Where("domain", domain).
-		Where("passwd", passwd)
+	env.Debug("%s, #%v", id, form)
 
-	if m, _, err = s.models.Users(flt, false); err != nil || len(m) != 1 {
+	if form.Login == "" ||
+		form.DomainName == "" ||
+		form.Password == "" {
+
+		return NewResponse(&Error{
+			Code:    401,
+			Message: http.StatusText(401),
+			Title:   http.StatusText(401),
+		})
+	}
+
+	flt.Where("login", form.Login).
+		Where("domain", form.DomainName).
+		Where("passwd", form.Password).
+		Where("manager", 1)
+
+	if model, _, err = env.Users(flt, false); err != nil || len(model) != 1 {
 		if err != nil {
-			s.Error("%s: %s", id, err.Error())
+			env.Error("%s: %s", id, err.Error())
 		} else {
-			if len(m) != 1 {
-				s.Error("%s: User=(%s) with password=(%s) not found", id, email, passwd)
+			if len(model) != 1 {
+				env.Error("%s: User=(%s) with password=(%s) not found", id, form.Email, form.Password)
 			}
 		}
 
-		resp = NewResponseError(401, nil)
-		return
+		return NewResponse(&Error{
+			Code:    401,
+			Message: http.StatusText(401),
+			Title:   http.StatusText(401),
+		})
 	}
 
 	claims = NewClaims()
-	claims.Uid = m[0].Id
-	claims.Subject = email
+	claims.Uid = model[0].Id
+	claims.Subject = form.Email
 
 	token = NewToken([]byte("secret")).
 		Sign(claims)
 
-	resp = NewResponseOk(token)
-	return
+	return NewResponse(token)
+}
+
+// Get Aliases list
+func Aliases(r *http.Request, env Enviroment) ResponseIface {
+	var (
+		count uint64
+		err   error
+		resp  *Response
+		a     []*models.Alias
+
+		flt = models.NewFilter()
+		id  = r.Context().Value("Id")
+	)
+
+	if err = r.ParseForm(); err != nil {
+		env.Error("%s, %s", id, err.Error())
+
+		return NewResponse(&Error{
+			Code:    500,
+			Message: "cannot parse form data",
+			Title:   http.StatusText(500),
+		})
+	}
+
+	if _, ok := r.Form["alias"]; ok {
+		flt.Where("alias", r.Form.Get("alias"))
+	}
+
+	if _, ok := r.Form["recipient"]; ok {
+		flt.Where("recipient", r.Form.Get("recipient")+"%")
+	}
+
+	if g := r.Context().Value("Group"); g != nil {
+		flt.Group(g.(string))
+	} else {
+		// Apply page limitation
+		helperLimit(r, flt)
+	}
+
+	if a, count, err = env.Aliases(flt, true); err != nil {
+		env.Error("%s: %s", id, err.Error())
+
+		return NewResponse(&Error{
+			Code:    500,
+			Message: "Cannot fetch aliases from database",
+			Title:   http.StatusText(500),
+		})
+	}
+
+	resp = NewResponse(a)
+	resp.Count = count
+
+	return resp
+}
+
+// Get users/mailboxes list
+func Users(r *http.Request, env Enviroment) ResponseIface {
+	var (
+		count uint64
+		err   error
+		resp  *Response
+		u     []*models.User
+
+		flt = models.NewFilter()
+		id  = r.Context().Value("Id")
+	)
+
+	if err = r.ParseForm(); err != nil {
+		env.Error("%s, %s", id, err.Error())
+
+		return NewResponse(&Error{
+			Code:    500,
+			Message: "cannot parse form data",
+			Title:   http.StatusText(500),
+		})
+	}
+
+	if _, ok := r.Form["email"]; ok {
+		flt.Where("emlike", r.Form.Get("email")+"%")
+	}
+
+	// Apply page limitation
+	helperLimit(r, flt)
+
+	if u, count, err = env.Users(flt, true); err != nil {
+		env.Error("%s: %s", id, err.Error())
+
+		return NewResponse(&Error{
+			Code:    500,
+			Message: "Cannot fetch users from database",
+			Title:   http.StatusText(500),
+		})
+	}
+
+	resp = NewResponse(u)
+	resp.Count = count
+
+	return resp
 }
 
 // Get user by id
-func (s *Controller) User(r *http.Request, ctx context.Context) ResponseIface {
+func User(r *http.Request, env Enviroment) ResponseIface {
 	var (
 		err    error
 		params routerParams
@@ -140,67 +240,282 @@ func (s *Controller) User(r *http.Request, ctx context.Context) ResponseIface {
 		u      []*models.User
 
 		flt = models.NewFilter()
-		id  = ctx.Value("Id")
+		id  = r.Context().Value("Id")
 	)
 
-	params = ctx.Value("Params").(routerParams)
+	params = r.Context().Value("Params").(routerParams)
 
 	if uid_str := params.ByName("uid"); uid_str == "me" {
-		uid = ctx.Value("Token").(*Token).Identity()
+		uid = r.Context().Value("Token").(*Token).Identity()
 	} else {
 		uid, err = strconv.ParseInt(uid_str, 10, 32)
 	}
 
 	if err != nil || uid < 1 {
 		if err != nil {
-			s.Error("%s: %s", id, err.Error())
+			env.Error("%s: %s", id, err.Error())
 		}
 
-		return NewResponseError(404, nil)
+		return NewResponse(&Error{
+			Code:    404,
+			Message: "empty user id",
+			Title:   http.StatusText(404),
+		})
 	}
 
 	flt.Where("id", uid)
 
-	if u, _, err = s.models.Users(flt, false); err != nil {
-		s.Error("%s: %s", id, err.Error())
+	if u, _, err = env.Users(flt, false); err != nil {
+		env.Error("%s: %s", id, err.Error())
 
-		return NewResponseError(404, nil)
+		return NewResponse(&Error{
+			Code:    500,
+			Message: "Cannot fetch user from database",
+			Title:   http.StatusText(500),
+		})
 	}
 
 	if l := len(u); l == 1 {
-		return NewResponseOk(u[0])
-	} else {
-		s.Error("%s: Can't find user with uid=(%d), rows count=(%d)", id, uid, l)
+		return NewResponse(u[0])
 	}
 
-	return NewResponseError(404, nil)
+	env.Error("%s: Can't find user with id=(%d)", id, uid)
+
+	return NewResponse(&Error{
+		Code:    404,
+		Message: http.StatusText(404),
+		Title:   http.StatusText(404),
+	})
 }
 
-func (s *Controller) Users(r *http.Request, ctx context.Context) ResponseIface {
+// Spamers statistics
+func Spam(r *http.Request, env Enviroment) ResponseIface {
 	var (
 		count uint64
 		err   error
 		resp  *Response
-		u     []*models.User
+		t     []*models.Spam
 
-		limit, offset uint64
+		interval uint64
 
 		flt = models.NewFilter()
-		id  = ctx.Value("Id")
+		id  = r.Context().Value("Id")
 	)
 
 	if err = r.ParseForm(); err != nil {
-		s.Error("%s, %s", id, err.Error())
+		env.Error("%s, %s", id, err.Error())
 
-		return NewResponseError(404, nil)
+		return NewResponse(&Error{
+			Code:    500,
+			Message: "cannot parse form data",
+			Title:   http.StatusText(500),
+		})
 	}
 
-	if _, ok := r.Form["email"]; ok {
-		flt.Where("emlike", r.Form.Get("email")+"%")
+	if _, ok := r.Form["interval"]; ok {
+		interval, _ = strconv.ParseUint(r.Form.Get("interval"), 10, 64)
 	}
 
-	limit = 0
-	offset = 100
+	if interval < 1 {
+		interval = 60
+	}
+
+	flt.Where("interval", interval)
+
+	if _, ok := r.Form["sort"]; ok {
+		flt.Order(r.Form.Get("sort"), false)
+	}
+
+	// Apply page limitation
+	helperLimit(r, flt)
+
+	if t, count, err = env.Spam(flt, true); err != nil {
+		env.Error("%s: %s", id, err.Error())
+
+		if err == models.ErrFilterArgument {
+			return NewResponse(err)
+		}
+
+		return NewResponse(&Error{
+			Code:    500,
+			Message: http.StatusText(500),
+			Title:   http.StatusText(500),
+		})
+	}
+
+	resp = NewResponse(t)
+	resp.Count = count
+
+	return resp
+}
+
+// Get transport list
+func Transports(r *http.Request, env Enviroment) ResponseIface {
+	var (
+		count uint64
+		err   error
+		resp  *Response
+		m     []*models.Transport
+
+		//tid int64 = -1
+		flt = models.NewFilter()
+		id  = r.Context().Value("Id")
+	)
+
+	if err = r.ParseForm(); err != nil {
+		env.Error("%s, %s", id, err.Error())
+
+		return NewResponse(&Error{
+			Code:    500,
+			Message: "cannot parse form data",
+			Title:   http.StatusText(500),
+		})
+	}
+
+	if _, ok := r.Form["domain"]; ok {
+		flt.Where("domain", r.Form.Get("domain")+"%")
+	}
+
+	// Apply page limitation
+	helperLimit(r, flt)
+
+	if m, count, err = env.Transports(flt, true); err != nil {
+		env.Error("%s: %s", id, err.Error())
+
+		return NewResponse(&Error{
+			Code:    500,
+			Message: "Cannot fetch transports from database",
+			Title:   http.StatusText(500),
+		})
+	}
+
+	resp = NewResponse(m)
+	resp.Count = count
+
+	return resp
+}
+
+// Get Single transport item
+func Transport(r *http.Request, env Enviroment) ResponseIface {
+	var (
+		err    error
+		params routerParams
+		tid    int64
+		t      []*models.Transport
+
+		flt = models.NewFilter()
+		id  = r.Context().Value("Id")
+	)
+
+	params = r.Context().Value("Params").(routerParams)
+
+	if tid_str := params.ByName("tid"); tid_str != "" {
+		if tid, err = strconv.ParseInt(tid_str, 10, 32); err != nil {
+			env.Error("%s: %s", id, err.Error())
+		}
+	}
+
+	if tid < 1 {
+		return NewResponse(&Error{
+			Code:    404,
+			Message: "empty transport id",
+			Title:   http.StatusText(404),
+		})
+	}
+
+	flt.Where("id", tid)
+
+	if t, _, err = env.Transports(flt, false); err != nil {
+		env.Error("%s: %s", id, err.Error())
+
+		return NewResponse(&Error{
+			Code:    500,
+			Message: "Cannot fetch user from database",
+			Title:   http.StatusText(500),
+		})
+	}
+
+	if l := len(t); l == 1 {
+		return NewResponse(t[0])
+	}
+
+	env.Error("%s: Can't find transport with id=(%d)", id, tid)
+
+	return NewResponse(&Error{
+		Code:    404,
+		Message: http.StatusText(404),
+		Title:   http.StatusText(404),
+	})
+}
+
+func MailSearch(r *http.Request, env Enviroment) ResponseIface {
+	var (
+		count uint64
+		err   error
+		resp  *Response
+		m     []string
+
+		flt = models.NewFilter()
+		id  = r.Context().Value("Id")
+	)
+
+	if err = r.ParseForm(); err != nil {
+		env.Error("%s, %s", id, err.Error())
+
+		return NewResponse(&Error{
+			Code:    500,
+			Message: "cannot parse form data",
+			Title:   http.StatusText(500),
+		})
+	}
+
+	if _, ok := r.Form["query"]; ok {
+		flt.Where("mail", r.Form.Get("query")+"%")
+	}
+
+	if _, ok := r.Form["sort"]; ok {
+		flt.Order(r.Form.Get("sort"), false)
+	} else {
+		flt.Order(r.Form.Get("sort"), false)
+	}
+
+	// Apply page limitation
+	helperLimit(r, flt)
+
+	if m, count, err = env.MailSearch(flt, true); err != nil {
+		env.Error("%s: %s", id, err.Error())
+
+		return NewResponse(&Error{
+			Code:    500,
+			Message: "Cannot fetch any mail from database",
+			Title:   http.StatusText(500),
+		})
+	}
+
+	resp = NewResponse(m)
+	resp.Count = count
+
+	return resp
+}
+
+// Wrap aliases and add grouping property
+func aliasGroupWrap(fn Controller) Controller {
+	return func(r *http.Request, env Enviroment) ResponseIface {
+		return fn(
+			r.WithContext(context.WithValue(r.Context(), "Group", "alias")),
+			env,
+		)
+	}
+}
+
+// Helper to parse query and paste page limitation to the filler object
+func helperLimit(r *http.Request, flt models.FilterIface) {
+	var (
+		limit, offset uint64
+	)
+
+	limit = 10
+	offset = 0
 
 	if _, ok := r.Form["limit"]; ok {
 		limit, _ = strconv.ParseUint(r.Form.Get("limit"), 10, 64)
@@ -211,154 +526,4 @@ func (s *Controller) Users(r *http.Request, ctx context.Context) ResponseIface {
 	}
 
 	flt.Limit(limit, offset)
-
-	if u, count, err = s.models.Users(flt, true); err != nil {
-		s.Error("%s: %s", id, err.Error())
-
-		return NewResponseError(404, nil)
-	}
-
-	resp = NewResponseOk(u)
-	resp.Count = count
-
-	return resp
-}
-
-func (s *Controller) Spam(r *http.Request, ctx context.Context) ResponseIface {
-	var (
-		count uint64
-		err   error
-		resp  *Response
-		t     []*models.Spam
-
-		interval,
-		limit,
-		offset uint64
-
-		flt = models.NewFilter()
-		id  = ctx.Value("Id")
-	)
-
-	if err = r.ParseForm(); err != nil {
-		s.Error("%s, %s", id, err.Error())
-
-		return NewResponseError(404, nil)
-	}
-
-	limit = 0
-	offset = 100
-
-	if _, ok := r.Form["interval"]; ok {
-		interval, _ = strconv.ParseUint(r.Form.Get("interval"), 10, 64)
-	}
-
-	if _, ok := r.Form["limit"]; ok {
-		limit, _ = strconv.ParseUint(r.Form.Get("limit"), 10, 64)
-	}
-
-	if _, ok := r.Form["offset"]; ok {
-		offset, _ = strconv.ParseUint(r.Form.Get("offset"), 10, 64)
-	}
-
-	if _, ok := r.Form["sort"]; ok {
-		flt.Order(r.Form.Get("sort"), false)
-	}
-
-	if interval < 1 {
-		interval = 60
-	}
-
-	flt.Where("interval", interval).
-		Limit(limit, offset)
-
-	if t, count, err = s.models.Spam(flt, true); err != nil {
-		s.Error("%s: %s", id, err.Error())
-
-		if err == models.ErrFilterArgument {
-			return NewResponseError(500, err)
-		}
-
-		return NewResponseError(500, "Server internal error")
-	}
-
-	resp = NewResponseOk(t)
-	resp.Count = count
-
-	return resp
-}
-
-func (s *Controller) Transports(r *http.Request, ctx context.Context) ResponseIface {
-	var (
-		count  uint64
-		doCnt  bool
-		err    error
-		params routerParams
-		resp   *Response
-		m      []*models.Transport
-
-		limit, offset uint64
-
-		tid int64 = -1
-		flt       = models.NewFilter()
-		id        = ctx.Value("Id")
-	)
-
-	params = ctx.Value("Params").(routerParams)
-
-	if tid_str := params.ByName("tid"); tid_str != "" {
-		tid, err = strconv.ParseInt(tid_str, 10, 32)
-
-		if err != nil {
-			s.Error("%s: %s", id, err.Error())
-		}
-
-		flt.Where("id", tid)
-	}
-
-	if tid < 0 {
-		if err = r.ParseForm(); err != nil {
-			s.Error("%s, %s", id, err.Error())
-
-			return NewResponseError(404, nil)
-		}
-
-		if _, ok := r.Form["domain"]; ok {
-			flt.Where("domain", r.Form.Get("domain")+"%")
-		}
-
-		limit = 0
-		offset = 100
-
-		if _, ok := r.Form["limit"]; ok {
-			limit, _ = strconv.ParseUint(r.Form.Get("limit"), 10, 64)
-		}
-
-		if _, ok := r.Form["offset"]; ok {
-			offset, _ = strconv.ParseUint(r.Form.Get("offset"), 10, 64)
-		}
-
-		flt.Limit(limit, offset)
-		doCnt = true
-	}
-
-	if m, count, err = s.models.Transports(flt, doCnt); err != nil {
-		s.Error("%s: %s", id, err.Error())
-
-		return NewResponseError(404, nil)
-	}
-
-	if tid > -1 {
-		if l := len(m); l == 1 {
-			return NewResponseOk(m[0])
-		} else {
-			s.Error("%s: Can't find user with uid=(%d), rows count=(%d)", id, tid, l)
-		}
-
-		return NewResponseError(404, nil)
-	}
-
-	resp = NewResponseOk(m)
-	resp.Count = count
-
-	return resp
 }

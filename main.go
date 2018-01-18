@@ -38,6 +38,10 @@ func main() {
 		Protect(aliasGroupWrap(Aliases)),
 		env,
 	))
+	router.Handle("GET", "/aliases/search", NewHandler(
+		Protect(MailSearch),
+		env,
+	))
 	router.Handle("GET", "/aliases", NewHandler(
 		Protect(Aliases),
 		env,
