@@ -46,6 +46,10 @@ func main() {
 		Protect(Aliases),
 		env,
 	))
+	router.Handle("GET", "/alias/:aid", NewHandler(
+		Protect(Alias),
+		env,
+	))
 
 	// Get users (mailboxes)
 	router.Handle("GET", "/users", NewHandler(
