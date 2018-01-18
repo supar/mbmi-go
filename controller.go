@@ -133,59 +133,6 @@ func Login(r *http.Request, env Enviroment) ResponseIface {
 	return NewResponse(token)
 }
 
-// Get Aliases list
-func Aliases(r *http.Request, env Enviroment) ResponseIface {
-	var (
-		count uint64
-		err   error
-		resp  *Response
-		a     []*models.Alias
-
-		flt = models.NewFilter()
-		id  = r.Context().Value("Id")
-	)
-
-	if err = r.ParseForm(); err != nil {
-		env.Error("%s, %s", id, err.Error())
-
-		return NewResponse(&Error{
-			Code:    500,
-			Message: "cannot parse form data",
-			Title:   http.StatusText(500),
-		})
-	}
-
-	if _, ok := r.Form["alias"]; ok {
-		flt.Where("alias", r.Form.Get("alias"))
-	}
-
-	if _, ok := r.Form["recipient"]; ok {
-		flt.Where("recipient", r.Form.Get("recipient")+"%")
-	}
-
-	if g := r.Context().Value("Group"); g != nil {
-		flt.Group(g.(string))
-	} else {
-		// Apply page limitation
-		helperLimit(r, flt)
-	}
-
-	if a, count, err = env.Aliases(flt, true); err != nil {
-		env.Error("%s: %s", id, err.Error())
-
-		return NewResponse(&Error{
-			Code:    500,
-			Message: "Cannot fetch aliases from database",
-			Title:   http.StatusText(500),
-		})
-	}
-
-	resp = NewResponse(a)
-	resp.Count = count
-
-	return resp
-}
-
 // Get users/mailboxes list
 func Users(r *http.Request, env Enviroment) ResponseIface {
 	var (
