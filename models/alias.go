@@ -5,10 +5,10 @@ import (
 )
 
 type Alias struct {
-	Id        int64  `json:"id"`
-	Alias     string `json:"alias"`
-	Recepient string `json:"recipient"`
-	Comment   string `json:"comment"`
+	Id        int64  `json:"id" schema:"id"`
+	Alias     Email  `json:"alias" schema: "alias"`
+	Recipient Email  `json:"recipient" schema:"recipient"`
+	Comment   string `json:"comment" schema:"comment"`
 }
 
 func (s *DB) Aliases(flt FilterIface, cnt bool) (m []*Alias, count uint64, err error) {
@@ -63,7 +63,7 @@ func (s *DB) Aliases(flt FilterIface, cnt bool) (m []*Alias, count uint64, err e
 		err = rows.Scan(
 			&i.Id,
 			&i.Alias,
-			&i.Recepient,
+			&i.Recipient,
 			&i.Comment,
 		)
 
@@ -93,6 +93,27 @@ func (s *DB) Aliases(flt FilterIface, cnt bool) (m []*Alias, count uint64, err e
 		if err != nil && err == sql.ErrNoRows {
 			err = nil
 		}
+	}
+
+	return
+}
+
+func (s *DB) SetAlias(alias *Alias) (err error) {
+	if alias.Id > 0 {
+		_, err = s.Exec("UPDATE `aliases` SET "+
+			"`alias` = ?, `recipient` = ?, `comment` = ? "+
+			"WHERE id = ?",
+			alias.Alias,
+			alias.Recipient,
+			alias.Comment,
+			alias.Id)
+	} else {
+		_, err = s.Exec("INSERT INTO `aliases` ("+
+			"`alias`, `recipient`, `comment`"+
+			") VALUES (?, ?, ?)",
+			alias.Alias,
+			alias.Recipient,
+			alias.Comment)
 	}
 
 	return
