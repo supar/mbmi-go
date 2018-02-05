@@ -13,9 +13,11 @@ var (
 
 type Datastore interface {
 	Aliases(FilterIface, bool) ([]*Alias, uint64, error)
+	SetAlias(*Alias) error
 	Users(FilterIface, bool) ([]*User, uint64, error)
 	Spam(FilterIface, bool) ([]*Spam, uint64, error)
 	Transports(FilterIface, bool) ([]*Transport, uint64, error)
+	MailSearch(FilterIface, bool) ([]string, uint64, error)
 }
 
 type Debug func(v ...interface{})
