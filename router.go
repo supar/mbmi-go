@@ -58,5 +58,5 @@ func parseFormTo(r *http.Request, v interface{}) (err error) {
 	}
 
 	schema_decoder = schema.NewDecoder()
-	return schema_decoder.Decode(&v, r.PostForm)
+	return schema_decoder.Decode(v, r.PostForm)
 }
