@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"mbmi-go/models"
 	"net/http"
 	"strconv"
@@ -94,7 +95,7 @@ func Alias(r *http.Request, env Enviroment) ResponseIface {
 
 		return NewResponse(&Error{
 			Code:    500,
-			Message: "Cannot fetch user from database",
+			Message: "Cannot fetch alias from database",
 			Title:   http.StatusText(500),
 		})
 	}
@@ -110,4 +111,82 @@ func Alias(r *http.Request, env Enviroment) ResponseIface {
 		Message: http.StatusText(404),
 		Title:   http.StatusText(404),
 	})
+}
+
+func SetAlias(r *http.Request, env Enviroment) ResponseIface {
+	var (
+		aid int64
+		err error
+
+		form   = models.Alias{}
+		id     = r.Context().Value("Id")
+		params = r.Context().Value("Params").(routerParams)
+	)
+
+	if err = parseFormTo(r, &form); err != nil {
+		env.Error("%s, %#v, %s", id, r.PostForm, err.Error())
+
+		return NewResponse(&Error{
+			Code:    500,
+			Message: "cannot parse form data",
+			Title:   http.StatusText(500),
+		})
+	}
+
+	// Validate Recipient
+	if _, _, err = form.Recipient.Split(); err != nil {
+		env.Error("%s: %s", id, err.Error())
+
+		return NewResponse(&Error{
+			Code:    500,
+			Message: err.Error(),
+			Title:   http.StatusText(500),
+		})
+	}
+
+	// Validate Alias
+	if _, _, err = form.Alias.Split(); err != nil {
+		env.Error("%s, %s", id, err.Error())
+
+		return NewResponse(&Error{
+			Code:    500,
+			Message: err.Error(),
+			Title:   http.StatusText(500),
+		})
+	}
+
+	if r.Method == "PUT" {
+		// Check
+		if aid, err = strconv.ParseInt(params.ByName("aid"), 10, 64); err != nil || aid < 1 {
+			if err == nil {
+				err = errors.New("Invalid record id")
+			}
+
+			env.Error("%s: %s (id=%d)", id, err.Error(), aid)
+
+			return NewResponse(&Error{
+				Code:    500,
+				Message: err.Error(),
+				Title:   http.StatusText(500),
+			})
+		}
+
+		form.Id = aid
+	} else {
+		form.Id = 0
+	}
+
+	env.Debug("%s: Alias data is valid", id)
+
+	if err = env.SetAlias(&form); err != nil {
+		env.Error("%s: %s", id, err.Error())
+
+		return NewResponse(&Error{
+			Code:    500,
+			Message: "Cannot save alias data",
+			Title:   http.StatusText(500),
+		})
+	}
+
+	return NewResponse(nil)
 }
