@@ -7,8 +7,33 @@ import (
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 	"io"
 	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"strconv"
+	"strings"
 	"testing"
 )
+
+type Values struct {
+	url.Values
+}
+
+type Tmock struct {
+	code   int
+	method string
+	values url.Values
+}
+
+func (v Values) New() Values {
+	return Values{
+		Values: url.Values{},
+	}
+}
+
+func (v Values) Set(key, value string) Values {
+	v.Values[key] = []string{value}
+	return v
+}
 
 func initDBMock(t *testing.T) (db *sql.DB, mock sqlmock.Sqlmock) {
 	var (
@@ -39,6 +64,10 @@ func request(method, url string, body io.Reader) (r *http.Request, err error) {
 
 	if r, err = http.NewRequest(method, url, body); err != nil {
 		return
+	}
+
+	if method == "POST" || method == "PUT" {
+		r.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	}
 
 	ctx = context.WithValue(r.Context(), "Id", "test_"+method)
@@ -168,5 +197,146 @@ func Test_GetMailSearchList(t *testing.T) {
 
 	if !resp.Ok() {
 		t.Errorf("Required success response, but got %d", resp.Status())
+	}
+}
+
+func Test_SaveAlias_Suites(t *testing.T) {
+	db, mock := initDBMock(t)
+	env := initTestBus(t, true)
+
+	aliases := []Tmock{
+		// Update entry
+		// Empty data
+		Tmock{
+			code:   500,
+			method: "PUT",
+			values: url.Values(map[string][]string{
+				"id": []string{"0"},
+			}),
+		},
+		// Invalid Alias data
+		Tmock{
+			code:   500,
+			method: "PUT",
+			values: url.Values(map[string][]string{
+				"alias": []string{"s f,@asdf,,.com @"},
+				"id":    []string{"0"},
+			}),
+		},
+		// Invalid recipient data
+		Tmock{
+			code:   500,
+			method: "PUT",
+			values: url.Values(map[string][]string{
+				"alias":     []string{"any@domain.com"},
+				"id":        []string{"0"},
+				"recipient": []string{"s f,@asdf,,.com"},
+			}),
+		},
+		// Invalid record id
+		Tmock{
+			code:   500,
+			method: "PUT",
+			values: url.Values(map[string][]string{
+				"id":        []string{"0"},
+				"alias":     []string{"any@domain.com"},
+				"recipient": []string{"tosomewahere@domain.com"},
+				"comment":   []string{""},
+			}),
+		},
+		Tmock{
+			code:   200,
+			method: "PUT",
+			values: url.Values(map[string][]string{
+				"id":        []string{"1"},
+				"alias":     []string{"any@domain.com"},
+				"recipient": []string{"tosomewahere@domain.com"},
+				"comment":   []string{""},
+			}),
+		},
+		// New entry
+		// Empty data
+		Tmock{
+			code:   500,
+			method: "POST",
+			values: url.Values(map[string][]string{}),
+		},
+		// Invalid Alias data
+		Tmock{
+			code:   500,
+			method: "POST",
+			values: url.Values(map[string][]string{
+				"alias": []string{"s f,@asdf,,.com @"},
+			}),
+		},
+		// Invalid recipient data
+		Tmock{
+			code:   500,
+			method: "POST",
+			values: url.Values(map[string][]string{
+				"alias":     []string{"any@domain.com"},
+				"recipient": []string{"s f,@asdf,,.com"},
+			}),
+		},
+		Tmock{
+			code:   200,
+			method: "POST",
+			values: url.Values(map[string][]string{
+				"alias":     []string{"any@domain.com"},
+				"recipient": []string{"tosomewahere@domain.com"},
+				"comment":   []string{""},
+			}),
+		},
+	}
+
+	if err := env.openDB(db); err != nil {
+		t.Error(err)
+	}
+
+	for _, data := range aliases {
+		var req *http.Request
+
+		if data.method != "PUT" && data.method != "POST" {
+			t.Fatalf("Unexpected method in the test: %s", data.method)
+		}
+
+		router := NewRouter()
+		w := httptest.NewRecorder()
+		id, _ := strconv.ParseInt(data.values.Get("id"), 10, 64)
+
+		if data.method == "POST" {
+			router.Handle(data.method, "/alias", NewHandler(SetAlias, env))
+			req, _ = request(data.method, "/alias", strings.NewReader(data.values.Encode()))
+		} else {
+			router.Handle(data.method, "/alias/:aid", NewHandler(SetAlias, env))
+			req, _ = request(data.method, "/alias/"+data.values.Get("id"), strings.NewReader(data.values.Encode()))
+		}
+
+		if data.code == 200 {
+			if data.method == "POST" {
+				mock.ExpectExec("^INSERT INTO.+VALUES").WithArgs(
+					data.values.Get("alias"),
+					data.values.Get("recipient"),
+					data.values.Get("comment"),
+				).WillReturnResult(sqlmock.NewResult(0, 0))
+			} else {
+				mock.ExpectExec("^UPDATE.+SET.+WHERE").WithArgs(
+					data.values.Get("alias"),
+					data.values.Get("recipient"),
+					data.values.Get("comment"),
+					id,
+				).WillReturnResult(sqlmock.NewResult(0, 0))
+			}
+		}
+
+		router.ServeHTTP(w, req)
+
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Errorf(err.Error())
+		}
+
+		if w.Code != data.code {
+			t.Errorf("Unexpected code was returned code=%d, body=%s", w.Code, w.Body)
+		}
 	}
 }
