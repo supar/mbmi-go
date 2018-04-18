@@ -79,7 +79,7 @@ func Login(r *http.Request, env Enviroment) ResponseIface {
 		})
 	}
 
-	if err = form.SplitEmail(); err != nil {
+	if _, _, err = form.Email.Split(); err != nil {
 		env.Error("%s, email %s", id, err.Error())
 
 		return NewResponse(&Error{
@@ -125,7 +125,7 @@ func Login(r *http.Request, env Enviroment) ResponseIface {
 
 	claims = NewClaims()
 	claims.Uid = model[0].Id
-	claims.Subject = form.Email
+	claims.Subject = string(form.Email)
 
 	token = NewToken([]byte("secret")).
 		Sign(claims)
