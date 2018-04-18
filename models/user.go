@@ -2,8 +2,6 @@ package models
 
 import (
 	"database/sql"
-	"errors"
-	"strings"
 )
 
 type User struct {
@@ -21,26 +19,6 @@ type User struct {
 	Sieve      bool   `json:"sieve" schema:"sieve"`
 	Manager    bool   `json:"manager" schema:"manager"`
 	Email      Email  `json:"email" schema:"email"`
-}
-
-func (u *User) SplitEmail() (err error) {
-	var parts []string
-
-	parts = strings.Split(u.Email, "@")
-
-	switch len(parts) {
-	case 2:
-		u.Login = parts[0]
-		u.DomainName = parts[1]
-
-	case 0:
-		err = errors.New("split: empty result")
-
-	default:
-		err = errors.New("split: multiple result")
-	}
-
-	return
 }
 
 func (s *DB) Users(flt FilterIface, cnt bool) (m []*User, count uint64, err error) {
