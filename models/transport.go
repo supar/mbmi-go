@@ -7,6 +7,8 @@ import (
 type Transport struct {
 	Id        int64  `json:"id"`
 	Domain    string `json:"domain"`
+	Uid       uint   `json:"uid" schema:"uid"`
+	Gid       uint   `json:"gid" schema:"gid"`
 	Transport string `json:"transport"`
 	Root      string `json:"rootdir"`
 }
