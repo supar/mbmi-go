@@ -16,8 +16,8 @@ type User struct {
 	Uid        uint   `json:"uid" schema:"uid"`
 	Gid        uint   `json:"gid" schema:"gid"`
 	Smtp       bool   `json:"smtp" schema:"smtp"`
-	Imap       bool   `json:"imap" schema:"smtp"`
-	Pop3       bool   `json:"pop3" schema:"smtp"`
+	Imap       bool   `json:"imap" schema:"imap"`
+	Pop3       bool   `json:"pop3" schema:"pop3"`
 	Sieve      bool   `json:"sieve" schema:"sieve"`
 	Manager    bool   `json:"manager" schema:"manager"`
 	Email      Email  `json:"email" schema:"email"`
