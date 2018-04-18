@@ -79,7 +79,9 @@ func Login(r *http.Request, env Enviroment) ResponseIface {
 		})
 	}
 
-	if _, _, err = form.Email.Split(); err != nil {
+	form.Login, form.DomainName, err = form.Email.Split()
+
+	if err != nil {
 		env.Error("%s, email %s", id, err.Error())
 
 		return NewResponse(&Error{
