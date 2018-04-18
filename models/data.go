@@ -18,6 +18,7 @@ type Datastore interface {
 	Spam(FilterIface, bool) ([]*Spam, uint64, error)
 	Transports(FilterIface, bool) ([]*Transport, uint64, error)
 	MailSearch(FilterIface, bool) ([]string, uint64, error)
+	SetUser(*User) error
 }
 
 type Debug func(v ...interface{})
