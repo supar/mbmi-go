@@ -7,20 +7,20 @@ import (
 )
 
 type User struct {
-	Id         int64  `json:"id"`
-	Name       string `json:"name"`
-	Login      string `json:"login"`
-	Domain     uint   `json:"domain"`
+	Id         int64  `json:"id" schema:"id"`
+	Name       string `json:"name" schema:"name"`
+	Login      string `json:"login" schema:"login"`
+	Domain     uint   `json:"domain" schema:"domain"`
 	DomainName string `json:"domainname"`
 	Password   string `json:"password" schema:"password"`
-	Uid        uint   `json:"uid"`
-	Gid        uint
-	Smtp       bool
-	Imap       bool
-	Pop3       bool
-	Sieve      bool
-	Manager    bool   `json:"manager"`
-	Email      string `json:"email" schema:"email"`
+	Uid        uint   `json:"uid" schema:"uid"`
+	Gid        uint   `json:"gid" schema:"gid"`
+	Smtp       bool   `json:"smtp" schema:"smtp"`
+	Imap       bool   `json:"imap" schema:"smtp"`
+	Pop3       bool   `json:"pop3" schema:"smtp"`
+	Sieve      bool   `json:"sieve" schema:"sieve"`
+	Manager    bool   `json:"manager" schema:"manager"`
+	Email      Email  `json:"email" schema:"email"`
 }
 
 func (u *User) SplitEmail() (err error) {
@@ -143,6 +143,78 @@ func (s *DB) Users(flt FilterIface, cnt bool) (m []*User, count uint64, err erro
 		if err != nil && err == sql.ErrNoRows {
 			err = nil
 		}
+	}
+
+	return
+}
+
+func (s *DB) SetUser(user *User) (err error) {
+	var (
+		result sql.Result
+		tx     *sql.Tx
+	)
+
+	if tx, err = s.Begin(); err != nil {
+		return
+	}
+
+	if user.Id > 0 {
+		_, err = tx.Exec("UPDATE `users` SET "+
+			"`name` = ? "+
+			"`, login` = ?"+
+			", `domain` = ? "+
+			", `gid` = ?"+
+			", `uid` = ?"+
+			", `smtp` = ?"+
+			", `imap` = ?"+
+			", `pop3` = ?"+
+			", `sieve` = ?"+
+			", `manager` = ?"+
+			"WHERE id = ?",
+			user.Name,
+			user.Login,
+			user.Domain,
+			user.Gid,
+			user.Uid,
+			user.Smtp,
+			user.Imap,
+			user.Pop3,
+			user.Sieve,
+			user.Manager,
+			user.Id)
+	} else {
+		result, err = tx.Exec("INSERT INTO `aliases` ("+
+			"`name`"+
+			"`, login`"+
+			", `domain`"+
+			", `gid`"+
+			", `uid`"+
+			", `smtp`"+
+			", `imap`"+
+			", `pop3`"+
+			", `sieve`"+
+			", `manager`"+
+			") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			user.Name,
+			user.Login,
+			user.Domain,
+			user.Gid,
+			user.Uid,
+			user.Smtp,
+			user.Imap,
+			user.Pop3,
+			user.Sieve,
+			user.Manager)
+
+		user.Id, err = result.LastInsertId()
+	}
+
+	if err == nil && user.Password != "" {
+		_, err = tx.Exec("UPDATE `users` SET `password` = ? WHERE = `id` = ?", user.Password, user.Id)
+	}
+
+	if err == nil {
+		return tx.Commit()
 	}
 
 	return
