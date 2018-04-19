@@ -1,3 +1,16 @@
+mbmi-go (0.2.1-1) unstable; urgency=low
+
+  * Mail box (users) list support.
+  * Mail box (users) save support.
+
+ -- supar <paulrez@gmail.com>  Thu, 19 Apr 2018 15:00:00 +0300
+
+mbmi-go (0.1.1-1) unstable; urgency=low
+
+  * Mail alias list support.
+
+ -- supar <paulrez@gmail.com>  Thu, 2 Nov 2017 11:00:00 +0300
+
 mbmi-go (0.0.1-1) unstable; urgency=low
 
   * The first release.
