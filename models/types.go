@@ -6,6 +6,7 @@ import (
 )
 
 type Email string
+type Boolean bool
 
 func (e Email) Split() (login, domain string, err error) {
 	var (

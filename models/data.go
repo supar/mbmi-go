@@ -61,3 +61,14 @@ func (s *DB) QueryRow(q string, args ...interface{}) *sql.Row {
 	// Execute query
 	return s.DB.QueryRow(q, args...)
 }
+
+// Wrap parent function to log query string and arguments
+func (s *DB) Exec(q string, args ...interface{}) (sql.Result, error) {
+	// Write query
+	s.Debug(q)
+	// Write arguments
+	s.Debug("%v", args)
+
+	// Execute query
+	return s.DB.Exec(q, args...)
+}
