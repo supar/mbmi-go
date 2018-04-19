@@ -5,20 +5,20 @@ import (
 )
 
 type User struct {
-	Id         int64  `json:"id" schema:"id"`
-	Name       string `json:"name" schema:"name"`
-	Login      string `json:"login" schema:"login"`
-	Domain     uint   `json:"domain" schema:"domain"`
-	DomainName string `json:"domainname"`
-	Password   string `json:"password" schema:"password"`
-	Uid        uint   `json:"uid" schema:"uid"`
-	Gid        uint   `json:"gid" schema:"gid"`
-	Smtp       bool   `json:"smtp" schema:"smtp"`
-	Imap       bool   `json:"imap" schema:"imap"`
-	Pop3       bool   `json:"pop3" schema:"pop3"`
-	Sieve      bool   `json:"sieve" schema:"sieve"`
-	Manager    bool   `json:"manager" schema:"manager"`
-	Email      Email  `json:"email" schema:"email"`
+	Id         int64   `json:"id" schema:"id"`
+	Name       string  `json:"name" schema:"name"`
+	Login      string  `json:"login" schema:"login"`
+	Domain     uint    `json:"domain" schema:"domain"`
+	DomainName string  `json:"domainname"`
+	Password   string  `json:"password" schema:"password"`
+	Uid        uint    `json:"uid" schema:"uid"`
+	Gid        uint    `json:"gid" schema:"gid"`
+	Smtp       Boolean `json:"smtp" schema:"smtp"`
+	Imap       Boolean `json:"imap" schema:"imap"`
+	Pop3       Boolean `json:"pop3" schema:"pop3"`
+	Sieve      Boolean `json:"sieve" schema:"sieve"`
+	Manager    Boolean `json:"manager" schema:"manager"`
+	Email      Email   `json:"email" schema:"email"`
 }
 
 func (s *DB) Users(flt FilterIface, cnt bool) (m []*User, count uint64, err error) {
@@ -129,18 +129,13 @@ func (s *DB) Users(flt FilterIface, cnt bool) (m []*User, count uint64, err erro
 func (s *DB) SetUser(user *User) (err error) {
 	var (
 		result sql.Result
-		tx     *sql.Tx
 	)
 
-	if tx, err = s.Begin(); err != nil {
-		return
-	}
-
 	if user.Id > 0 {
-		_, err = tx.Exec("UPDATE `users` SET "+
+		_, err = s.Exec("UPDATE `users` SET "+
 			"`name` = ? "+
-			"`, login` = ?"+
-			", `domain` = ? "+
+			", `login` = ?"+
+			", `domid` = ?"+
 			", `gid` = ?"+
 			", `uid` = ?"+
 			", `smtp` = ?"+
@@ -148,7 +143,7 @@ func (s *DB) SetUser(user *User) (err error) {
 			", `pop3` = ?"+
 			", `sieve` = ?"+
 			", `manager` = ?"+
-			"WHERE id = ?",
+			" WHERE `id` = ?",
 			user.Name,
 			user.Login,
 			user.Domain,
@@ -161,10 +156,10 @@ func (s *DB) SetUser(user *User) (err error) {
 			user.Manager,
 			user.Id)
 	} else {
-		result, err = tx.Exec("INSERT INTO `aliases` ("+
+		result, err = s.Exec("INSERT INTO `users` ("+
 			"`name`"+
-			"`, login`"+
-			", `domain`"+
+			", `login`"+
+			", `domid`"+
 			", `gid`"+
 			", `uid`"+
 			", `smtp`"+
@@ -184,15 +179,15 @@ func (s *DB) SetUser(user *User) (err error) {
 			user.Sieve,
 			user.Manager)
 
+		if err != nil {
+			return
+		}
+
 		user.Id, err = result.LastInsertId()
 	}
 
 	if err == nil && user.Password != "" {
-		_, err = tx.Exec("UPDATE `users` SET `password` = ? WHERE = `id` = ?", user.Password, user.Id)
-	}
-
-	if err == nil {
-		return tx.Commit()
+		_, err = s.Exec("UPDATE `users` SET `passwd` = ? WHERE `id` = ?", user.Password, user.Id)
 	}
 
 	return
