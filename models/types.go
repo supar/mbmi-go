@@ -27,3 +27,40 @@ func (e Email) Split() (login, domain string, err error) {
 
 	return parts[0], parts[1], nil
 }
+
+func (bit *Boolean) UnmarshalJSON(data []byte) error {
+	var value = string(data)
+
+	if value == "1" || value == "true" {
+		*bit = true
+	} else if value == "0" || value == "false" {
+		*bit = false
+	} else {
+		return errors.New("Boolean unmarshal error: invalid input `" + value + "`")
+	}
+
+	return nil
+}
+
+func (scanner *Boolean) Scan(src interface{}) error {
+	switch src.(type) {
+	case int64:
+		if v, ok := src.(int64); ok && v > 0 {
+			*scanner = Boolean(true)
+		}
+
+	case bool:
+		if v, ok := src.(bool); ok {
+			*scanner = Boolean(v)
+		}
+	}
+
+	return nil
+}
+
+func (driver Boolean) Value() (value interface{}, err error) {
+	if driver {
+		return int64(1), nil
+	}
+	return int64(0), nil
+}
