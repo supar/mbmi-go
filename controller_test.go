@@ -340,3 +340,124 @@ func Test_SaveAlias_Suites(t *testing.T) {
 		}
 	}
 }
+
+func Test_SaveUser_Suites(t *testing.T) {
+	db, mock := initDBMock(t)
+	env := initTestBus(t, true)
+
+	users := []Tmock{
+		Tmock{
+			code:   200,
+			method: "PUT",
+			values: url.Values(map[string][]string{
+				"id":       []string{"1"},
+				"name":     []string{"Any User"},
+				"login":    []string{"domain.com"},
+				"password": []string{"123"},
+				"domain":   []string{"1"},
+				"uid":      []string{"8"},
+				"gid":      []string{"8"},
+				"smtp":     []string{"1"},
+				"imap":     []string{"1"},
+			}),
+		},
+		Tmock{
+			code:   200,
+			method: "POST",
+			values: url.Values(map[string][]string{
+				"id":       []string{"1"},
+				"name":     []string{"Any User"},
+				"login":    []string{"domain.com"},
+				"password": []string{"123"},
+				"domain":   []string{"1"},
+				"uid":      []string{"8"},
+				"gid":      []string{"8"},
+				"smtp":     []string{"1"},
+				"imap":     []string{"1"},
+			}),
+		},
+	}
+
+	if err := env.openDB(db); err != nil {
+		t.Error(err)
+	}
+
+	for _, data := range users {
+		var req *http.Request
+
+		if data.method != "PUT" && data.method != "POST" {
+			t.Fatalf("Unexpected method in the test: %s", data.method)
+		}
+
+		router := NewRouter()
+		w := httptest.NewRecorder()
+		if data.method == "POST" {
+			router.Handle(data.method, "/user", NewHandler(SetUser, env))
+			req, _ = request(data.method, "/user", strings.NewReader(data.values.Encode()))
+		} else {
+			router.Handle(data.method, "/user/:uid", NewHandler(SetUser, env))
+			req, _ = request(data.method, "/user/"+data.values.Get("id"), strings.NewReader(data.values.Encode()))
+		}
+
+		if data.code == 200 {
+			rows := sqlmock.NewRows([]string{
+				"id", "domain", "transport", "rootdir",
+			}).
+				AddRow(1, "doamin.com", "virtual", "/mail")
+
+			mock.ExpectQuery("^SELECT").WillReturnRows(rows)
+
+			if data.method == "PUT" {
+				mock.ExpectQuery("^SELECT").WillReturnRows(
+					sqlmock.NewRows([]string{
+						"id",
+						"name",
+						"login",
+						"domid",
+						"passwd",
+						"uid",
+						"gid",
+						"smtp",
+						"imap",
+						"pop3",
+						"sieve",
+						"manager",
+						"domainname",
+					}).
+						AddRow(
+							data.values.Get("id"),
+							data.values.Get("name"),
+							data.values.Get("login"),
+							data.values.Get("domain"),
+							data.values.Get("password"),
+							data.values.Get("uid"),
+							data.values.Get("gid"),
+							data.values.Get("smtp"),
+							data.values.Get("imap"),
+							data.values.Get("pop3"),
+							data.values.Get("sieve"),
+							data.values.Get("manager"),
+							data.values.Get("domainname"),
+						))
+
+				mock.ExpectExec("^UPDATE.+users.+SET.+WHERE").WillReturnResult(sqlmock.NewResult(0, 1))
+			} else {
+				mock.ExpectExec("^INSERT\\s+INTO.+users.+VALUES").WillReturnResult(sqlmock.NewResult(1, 0))
+			}
+
+			if data.values.Get("password") != "" {
+				mock.ExpectExec("^UPDATE[\\s`]+users[\\s`]+SET[\\s`]+passwd[\\s`=\\?]+WHERE").WillReturnResult(sqlmock.NewResult(0, 1))
+			}
+		}
+
+		router.ServeHTTP(w, req)
+
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Errorf(err.Error())
+		}
+
+		if w.Code != data.code {
+			t.Errorf("Unexpected code was returned code=%d, body=%s", w.Code, w.Body)
+		}
+	}
+}
