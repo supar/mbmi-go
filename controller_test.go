@@ -461,3 +461,38 @@ func Test_SaveUser_Suites(t *testing.T) {
 		}
 	}
 }
+
+func Test_GetPassword(t *testing.T) {
+	env := initTestBus(t, true)
+
+	data := []Tmock{
+		Tmock{
+			code:   200,
+			method: "GET",
+			values: url.Values(map[string][]string{}),
+		},
+		Tmock{
+			code:   200,
+			method: "GET",
+			values: url.Values(map[string][]string{
+				"length": []string{"22"},
+			}),
+		},
+	}
+
+	for _, data := range data {
+		var req *http.Request
+
+		router := NewRouter()
+		w := httptest.NewRecorder()
+
+		router.Handle(data.method, "/password", NewHandler(Password, env))
+		req, _ = request(data.method, "/password?"+data.values.Encode(), nil)
+
+		router.ServeHTTP(w, req)
+
+		if w.Code != data.code {
+			t.Errorf("Unexpected code was returned code=%d, body=%s", w.Code, w.Body)
+		}
+	}
+}
