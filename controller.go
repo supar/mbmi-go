@@ -345,6 +345,56 @@ func MailSearch(r *http.Request, env Enviroment) ResponseIface {
 	return resp
 }
 
+// Get random passwords list
+func Password(r *http.Request, env Enviroment) ResponseIface {
+	var (
+		count  uint64
+		err    error
+		resp   *Response
+		pass_l int
+
+		m  = make([]string, 3)
+		id = r.Context().Value("Id")
+	)
+
+	if err = r.ParseForm(); err != nil {
+		env.Error("%s, %s", id, err.Error())
+
+		return NewResponse(&Error{
+			Code:    500,
+			Message: "cannot parse form data",
+			Title:   http.StatusText(500),
+		})
+	}
+
+	pass_l, _ = strconv.Atoi(r.Form.Get("length"))
+
+	if pass_l <= 0 {
+		pass_l = 16
+	}
+
+	for l, i := len(m), 0; i < l; i++ {
+		var str string
+
+		if str, err = createSecret(pass_l, false, false, false); err != nil {
+			env.Error("%s: %s", id, err.Error())
+
+			return NewResponse(&Error{
+				Code:    500,
+				Message: "Cannot fetch transports from database",
+				Title:   http.StatusText(500),
+			})
+		}
+
+		m[i] = str
+	}
+
+	resp = NewResponse(m)
+	resp.Count = count
+
+	return resp
+}
+
 // Wrap aliases and add grouping property
 func aliasGroupWrap(fn Controller) Controller {
 	return func(r *http.Request, env Enviroment) ResponseIface {
