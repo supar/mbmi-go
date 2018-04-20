@@ -76,6 +76,10 @@ func main() {
 		Protect(SetUser),
 		env,
 	))
+	router.Handle("GET", "/password", NewHandler(
+		Protect(Password),
+		env,
+	))
 
 	// Spamm
 	router.Handle("GET", "/spam", NewHandler(
