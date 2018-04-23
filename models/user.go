@@ -212,6 +212,12 @@ func userWhere(arg sql.NamedArg) (string, error) {
 
 	case "manager":
 		return "`u`.`manager` = ?", nil
+
+	case "mode_on":
+		return "(`u`.`smtp` = 1 OR `u`.`imap` = 1 OR `u`.`pop3` = 1)", nil
+
+	case "mode_off":
+		return "(`u`.`smtp` = 0 AND `u`.`imap` = 0 AND `u`.`pop3` = 0)", nil
 	}
 
 	return "", ErrFilterArgument

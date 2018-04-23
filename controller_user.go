@@ -33,6 +33,16 @@ func Users(r *http.Request, env Enviroment) ResponseIface {
 		flt.Where("emlike", r.Form.Get("email")+"%")
 	}
 
+	if _, ok := r.Form["mode"]; ok {
+		switch r.Form.Get("mode") {
+		case "on":
+			flt.Where("mode_on", nil)
+
+		case "off":
+			flt.Where("mode_off", nil)
+		}
+	}
+
 	// Apply page limitation
 	helperLimit(r, flt)
 
