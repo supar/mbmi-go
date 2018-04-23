@@ -1,3 +1,7 @@
+mbmi-go (0.4.1-2) unstable; urgency=low
+
+ -- supar <paulrez@gmail.com>  Mon, 23 Apr 2018 18:00:00 +0300
+
 mbmi-go (0.3.1-1) unstable; urgency=low
 
   * Get random password
