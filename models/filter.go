@@ -155,6 +155,10 @@ func (s *Query) Where(name string, v interface{}) FilterIface {
 			args:       make([]sql.NamedArg, 0),
 		}
 
+		if v == nil {
+			expr.pushValues = false
+		}
+
 		s.expressions = append(s.expressions, expr)
 	}
 
