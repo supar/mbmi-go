@@ -98,7 +98,7 @@ func (s *DB) Transports(flt FilterIface, cnt bool) (m []*Transport, count uint64
 	return
 }
 
-func transportWhere(arg sql.NamedArg) (string, error) {
+func transportWhere(arg *NamedArg) (string, error) {
 	switch arg.Name {
 	case "id":
 		return "`t`.`id` = ?", nil
@@ -110,7 +110,7 @@ func transportWhere(arg sql.NamedArg) (string, error) {
 	return "", ErrFilterArgument
 }
 
-func transportOrder(arg sql.NamedArg) (string, error) {
+func transportOrder(arg *NamedArg) (string, error) {
 	switch arg.Name {
 	case "id":
 		return "`t`.`id`", nil

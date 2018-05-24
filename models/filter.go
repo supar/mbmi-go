@@ -1,8 +1,11 @@
 package models
 
-import (
-	"database/sql"
-)
+// This is equivalent to the sql.NamedArg function othervise
+// Value is the slice of interfaces
+type NamedArg struct {
+	Name  string
+	Value []interface{}
+}
 
 // Query interface to set base query expressions:
 // WHERE, GROUP BY, ORDER, LIMIT
@@ -12,6 +15,38 @@ type FilterIface interface {
 	Limit(uint64, uint64) FilterIface
 	Order(string, bool) FilterIface
 	Where(string, interface{}) FilterIface
+}
+
+func (n *NamedArg) Set(v ...interface{}) {
+	var data []interface{}
+
+	if v != nil && len(v) > 0 {
+		data = make([]interface{}, 0)
+
+		for _, item := range v {
+			if item == nil {
+				continue
+			}
+
+			data = append(data, item)
+		}
+	}
+
+	n.Value = data
+}
+
+func (n *NamedArg) Fill(v interface{}, repeat int) {
+	if repeat < 2 {
+		return
+	}
+
+	var data = make([]interface{}, 0, repeat)
+
+	for i := 0; i < repeat; i++ {
+		data = append(data, v)
+	}
+
+	n.Set(data...)
 }
 
 // Create query object and return filter interface
@@ -24,7 +59,7 @@ type FilterIface interface {
 // Example:
 // flt.Where("id", 1)
 //
-// cbFunc = func(arg sql.NamedArg) (string, error) {
+// cbFunc = func(arg namedArg) (string, error) {
 //     switch args.Name {
 //     case "id":
 //         return "`userTable`.`id` = ?". nil
@@ -47,7 +82,7 @@ func (s *Query) Group(name string) FilterIface {
 			glue:       ",",
 			order:      3,
 			pushValues: false,
-			args:       make([]sql.NamedArg, 0),
+			args:       make([]NamedArg, 0),
 		}
 
 		s.expressions = append(s.expressions, expr)
@@ -67,8 +102,7 @@ func (s *Query) Limit(limit, offset uint64) FilterIface {
 			glue:       ",",
 			order:      7,
 			pushValues: true,
-			args:       make([]sql.NamedArg, 2),
-			callback: func(arg sql.NamedArg) (string, error) {
+			callback: func(arg *NamedArg) (string, error) {
 				switch arg.Name {
 				case "rowslimit":
 					return "?", nil
@@ -85,16 +119,9 @@ func (s *Query) Limit(limit, offset uint64) FilterIface {
 		s.expressions = append(s.expressions, expr)
 	}
 
-	expr.args = []sql.NamedArg{
-		sql.NamedArg{
-			Name:  "rowsoffset",
-			Value: offset,
-		},
-		sql.NamedArg{
-			Name:  "rowslimit",
-			Value: limit,
-		},
-	}
+	expr.args = make([]NamedArg, 0, 2)
+	expr.set("rowsoffset", offset)
+	expr.set("rowslimit", limit)
 
 	return s
 }
@@ -132,7 +159,7 @@ func (s *Query) Order(name string, order bool) FilterIface {
 			glue:       ",",
 			order:      4,
 			pushValues: false,
-			args:       make([]sql.NamedArg, 0),
+			args:       make([]NamedArg, 0),
 		}
 
 		s.expressions = append(s.expressions, expr)
@@ -152,11 +179,7 @@ func (s *Query) Where(name string, v interface{}) FilterIface {
 			glue:       " AND ",
 			order:      2,
 			pushValues: true,
-			args:       make([]sql.NamedArg, 0),
-		}
-
-		if v == nil {
-			expr.pushValues = false
+			args:       make([]NamedArg, 0),
 		}
 
 		s.expressions = append(s.expressions, expr)
@@ -167,12 +190,14 @@ func (s *Query) Where(name string, v interface{}) FilterIface {
 	return s
 }
 
-func (s *expression) set(name string, v interface{}) {
+func (s *expression) set(name string, v ...interface{}) {
 	if name != "" {
-		s.args = append(s.args, sql.NamedArg{
-			Name:  name,
-			Value: v,
-		})
+		var arg = NamedArg{
+			Name: name,
+		}
+
+		arg.Set(v...)
+		s.args = append(s.args, arg)
 	}
 }
 
@@ -183,7 +208,7 @@ func (s *expression) each(fn namedArgFunc) (expr []string, args []interface{}, e
 	for _, i := range s.args {
 		var str string
 
-		if str, err = fn(i); err != nil {
+		if str, err = fn(&i); err != nil {
 			return
 		}
 
@@ -192,7 +217,10 @@ func (s *expression) each(fn namedArgFunc) (expr []string, args []interface{}, e
 		}
 
 		expr = append(expr, str)
-		args = append(args, i.Value)
+
+		if i.Value != nil {
+			args = append(args, i.Value...)
+		}
 	}
 
 	return

@@ -2,7 +2,6 @@ package models
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"net/url"
@@ -21,7 +20,7 @@ type expression struct {
 	glue       string
 	order      uint8
 	pushValues bool
-	args       []sql.NamedArg
+	args       []NamedArg
 	callback   namedArgFunc
 }
 
@@ -29,7 +28,7 @@ type rowScanIface interface {
 	Scan(...interface{}) error
 }
 
-type namedArgFunc func(sql.NamedArg) (string, error)
+type namedArgFunc func(*NamedArg) (string, error)
 
 type exprOrder []*expression
 

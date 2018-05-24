@@ -119,7 +119,7 @@ func (s *DB) SetAlias(alias *Alias) (err error) {
 	return
 }
 
-func aliasWhere(arg sql.NamedArg) (string, error) {
+func aliasWhere(arg *NamedArg) (string, error) {
 	switch arg.Name {
 	case "id":
 		return "`a`.`id` = ?", nil
@@ -134,7 +134,7 @@ func aliasWhere(arg sql.NamedArg) (string, error) {
 	return "", ErrFilterArgument
 }
 
-func aliasGroup(arg sql.NamedArg) (string, error) {
+func aliasGroup(arg *NamedArg) (string, error) {
 	switch arg.Name {
 	case "alias":
 		return "`alias`", nil
@@ -143,7 +143,7 @@ func aliasGroup(arg sql.NamedArg) (string, error) {
 	return "", ErrFilterArgument
 }
 
-func aliasOrder(arg sql.NamedArg) (string, error) {
+func aliasOrder(arg *NamedArg) (string, error) {
 	switch arg.Name {
 	case "id":
 		return "`a`.`id`", nil

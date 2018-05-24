@@ -75,7 +75,7 @@ func (s *DB) MailSearch(flt FilterIface, cnt bool) (m []string, count uint64, er
 	return
 }
 
-func mailSearchWhere(arg sql.NamedArg) (string, error) {
+func mailSearchWhere(arg *NamedArg) (string, error) {
 	switch arg.Name {
 	case "mail":
 		return "`mail` LIKE ?", nil
@@ -85,7 +85,7 @@ func mailSearchWhere(arg sql.NamedArg) (string, error) {
 	return "", ErrFilterArgument
 }
 
-func mailSearchOrder(arg sql.NamedArg) (string, error) {
+func mailSearchOrder(arg *NamedArg) (string, error) {
 	switch arg.Name {
 	case "mail":
 		return "`mail`", nil

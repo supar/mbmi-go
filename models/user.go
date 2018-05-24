@@ -193,10 +193,16 @@ func (s *DB) SetUser(user *User) (err error) {
 	return
 }
 
-func userWhere(arg sql.NamedArg) (string, error) {
+func userWhere(arg *NamedArg) (string, error) {
 	switch arg.Name {
 	case "emlike":
 		return "CONCAT(`u`.`login`, '@', `t`.`domain`) LIKE ?", nil
+
+	case "search":
+		if arg.Value != nil && len(arg.Value) == 1 {
+			arg.Fill(arg.Value[0], 2)
+		}
+		return "(`u`.`name` LIKE ? OR CONCAT(`u`.`login`, '@', `t`.`domain`) LIKE ?)", nil
 
 	case "id":
 		return "`u`.`id` = ?", nil
@@ -223,7 +229,7 @@ func userWhere(arg sql.NamedArg) (string, error) {
 	return "", ErrFilterArgument
 }
 
-func userOrder(arg sql.NamedArg) (string, error) {
+func userOrder(arg *NamedArg) (string, error) {
 	switch arg.Name {
 	case "id":
 		return "`u`.`id`", nil

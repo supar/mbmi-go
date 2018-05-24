@@ -2,7 +2,6 @@ package models
 
 import (
 	"database/sql"
-	"fmt"
 )
 
 type Spam struct {
@@ -30,6 +29,12 @@ func (s *DB) Spam(flt FilterIface, cnt bool) (m []*Spam, count uint64, err error
 
 	query = flt.(*Query)
 
+	query.raw = "SELECT " +
+		" `s`.`client` `client`" +
+		", `s`.`from` `from`" +
+		", `s`.`ip` `ip`" +
+		", SUM(`s`.`spam_victims_score`) `attempt` "
+
 	for _, expr := range query.expressions {
 		switch expr.name {
 		case "WHERE":
@@ -38,7 +43,8 @@ func (s *DB) Spam(flt FilterIface, cnt bool) (m []*Spam, count uint64, err error
 			// Find if interval was passed
 			for _, a := range expr.args {
 				if a.Name == "interval" {
-					interval = a.Value
+					query.raw += ", (1 - POW(EXP(1), -(SUM(`s`.`spam_victims_score`) / ?))) `index` "
+					interval = a.Value[0]
 
 					break
 				}
@@ -51,19 +57,12 @@ func (s *DB) Spam(flt FilterIface, cnt bool) (m []*Spam, count uint64, err error
 		}
 	}
 
-	query.raw = "SELECT " +
-		" `s`.`client` `client`" +
-		", `s`.`from` `from`" +
-		", `s`.`ip` `ip`" +
-		", SUM(`s`.`spam_victims_score`) `attempt` " +
-		", (1 - POW(EXP(1), -(SUM(`s`.`spam_victims_score`) / ?))) `index` " +
-		"FROM `spammers` AS `s` "
+	query.raw += "FROM `spammers` AS `s` "
 
 	if query_str, args, err = query.Compile(); err != nil {
 		return
 	}
 
-	fmt.Println(query_str)
 	args = append([]interface{}{interval}, args...)
 	if rows, err = s.Query(query_str, args...); err != nil {
 		return
@@ -108,7 +107,6 @@ func (s *DB) Spam(flt FilterIface, cnt bool) (m []*Spam, count uint64, err error
 		}
 
 		query_str = "SELECT COUNT(*) FROM (" + query_str + ") `tmp`"
-		fmt.Println(query_str)
 		err = s.QueryRow(query_str, args...).Scan(&count)
 
 		if err != nil && err == sql.ErrNoRows {
@@ -119,7 +117,7 @@ func (s *DB) Spam(flt FilterIface, cnt bool) (m []*Spam, count uint64, err error
 	return
 }
 
-func spamWhere(arg sql.NamedArg) (string, error) {
+func spamWhere(arg *NamedArg) (string, error) {
 	switch arg.Name {
 	case "client":
 		return "`s`.`client` LIKE ?", nil
@@ -130,7 +128,7 @@ func spamWhere(arg sql.NamedArg) (string, error) {
 	return "", ErrFilterArgument
 }
 
-func spamGroup(arg sql.NamedArg) (string, error) {
+func spamGroup(arg *NamedArg) (string, error) {
 	switch arg.Name {
 	case "client":
 		return "`client`", nil
@@ -139,12 +137,12 @@ func spamGroup(arg sql.NamedArg) (string, error) {
 	return "", ErrFilterArgument
 }
 
-func spamOrder(arg sql.NamedArg) (string, error) {
+func spamOrder(arg *NamedArg) (string, error) {
 	switch arg.Name {
 	case "attempt":
-		return "`attempt` " + arg.Value.(string), nil
+		return "`attempt`", nil
 	case "index":
-		return "`index` " + arg.Value.(string), nil
+		return "`index`", nil
 	}
 
 	return "", ErrFilterArgument
