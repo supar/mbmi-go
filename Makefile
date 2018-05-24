@@ -30,10 +30,13 @@ cover:
 test:
 	@go test -v .
 
+bench:
+	@go test -bench=. -benchmem
+
 dependency:
 	@go get -fix -t $(BUILD_PKGS)
 
-deb: $(DEB_PKG)
+deb: .clean_deb $(DEB_PKG)
 
 $(DEB_ROOT): contrib/debian
 	mkdir -p $(DEB_ROOT)
@@ -55,4 +58,7 @@ $(DEB_INITD): contrib/scripts/$(NAME).init.sh
 $(DEB_PKG): $(DEB_ROOT) $(DEB_SOURCE) $(DEB_CONF) $(DEB_INITD)
 	cd $(DEB_DIR)/$(NAME)-$(VERSION) && \
 	debuild --set-envvar BUILD_APP_VERSION=$(VERSION) -us -uc -b
+
+.clean_deb:
+	@rm -rf $(shell find . -type d -path "*build/debian*" -print -quit)
 
