@@ -145,6 +145,37 @@ func Test_GetUsersList(t *testing.T) {
 	}
 }
 
+func Test_SearchUserByEmailOrName(t *testing.T) {
+	db, mock := initDBMock(t)
+	req, _ := request("GET", "/users?query=alert%40domain.com", nil)
+	env := initTestBus(t, false)
+
+	rows := sqlmock.NewRows([]string{
+		"id", "name", "login", "domid",
+		"passwd", "uid", "gid", "smtp", "imap", "pop3",
+		"sieve", "manager", "domainname",
+	}).
+		AddRow(1, "Alert User Name", "alert", 1, "anypass", 8, 8, 1, 1, 0, 1, 1, "doamin.com")
+
+	count := sqlmock.NewRows([]string{"count"}).AddRow(1)
+
+	mock.ExpectQuery("SELECT.+WHERE.+LIKE.+OR.+CONCAT").
+		WithArgs("%alert@domain.com%", "%alert@domain.com%", 0, 10).
+		WillReturnRows(rows)
+
+	mock.ExpectQuery("SELECT COUNT").WillReturnRows(count)
+
+	if err := env.openDB(db); err != nil {
+		t.Error(err)
+	}
+
+	resp := Users(req, env)
+
+	if !resp.Ok() {
+		t.Errorf("Required success response, but got %d", resp.Status())
+	}
+}
+
 func Test_GetUnknownUser_404ShoulBe(t *testing.T) {
 	db, mock := initDBMock(t)
 	req, _ := request("GET", "/user/4", nil)

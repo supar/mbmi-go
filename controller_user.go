@@ -30,7 +30,15 @@ func Users(r *http.Request, env Enviroment) ResponseIface {
 	}
 
 	if _, ok := r.Form["email"]; ok {
-		flt.Where("emlike", r.Form.Get("email")+"%")
+		if v := r.Form.Get("email"); v != "" {
+			flt.Where("emlike", v+"%")
+		}
+	}
+
+	if _, ok := r.Form["query"]; ok {
+		if v := r.Form.Get("query"); v != "" {
+			flt.Where("search", "%"+v+"%")
+		}
 	}
 
 	if _, ok := r.Form["mode"]; ok {
