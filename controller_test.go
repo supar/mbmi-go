@@ -432,9 +432,9 @@ func Test_SaveUser_Suites(t *testing.T) {
 
 		if data.code == 200 {
 			rows := sqlmock.NewRows([]string{
-				"id", "domain", "transport", "rootdir",
+				"id", "domain", "transport", "rootdir", "uid", "gid",
 			}).
-				AddRow(1, "doamin.com", "virtual", "/mail")
+				AddRow(1, "doamin.com", "virtual", "/mail", 8, 8)
 
 			mock.ExpectQuery("^SELECT").WillReturnRows(rows)
 
