@@ -41,6 +41,8 @@ func (s *DB) Transports(flt FilterIface, cnt bool) (m []*Transport, count uint64
 		", `t`.`domain` `domain`" +
 		", `t`.`transport` `transport`" +
 		", `t`.`rootdir` `rootdir`" +
+		", `t`.`uid` `uid`" +
+		", `t`.`gid` `gid`" +
 		" " +
 		"FROM `transport` AS `t` "
 
@@ -65,6 +67,8 @@ func (s *DB) Transports(flt FilterIface, cnt bool) (m []*Transport, count uint64
 			&i.Domain,
 			&i.Transport,
 			&i.Root,
+			&i.Uid,
+			&i.Gid,
 		)
 
 		if err != nil {
