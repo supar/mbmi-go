@@ -20,7 +20,7 @@ func Middlewares(h http.Handler, m ...WrapHandler) http.Handler {
 
 // Take JWT from Authorization header
 // Parse token string and validate it if path is not /login
-func JWT(log LogIface) WrapHandler {
+func JWT(secret string, log LogIface) WrapHandler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			var (
@@ -28,7 +28,7 @@ func JWT(log LogIface) WrapHandler {
 				err error
 
 				id = r.Context().Value("Id").(string)
-				tk = NewToken([]byte("secret"))
+				tk = NewToken([]byte(secret))
 			)
 
 			if t := r.Header.Get("Authorization"); t != "" {

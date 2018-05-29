@@ -20,6 +20,15 @@ func main() {
 	// Print version if flag passed
 	showVersion(env)
 
+	// Create secret if empty
+	if SECRETPHRASE == "" {
+		if str, err := createSecret(32, false, false, false); err != nil {
+			env.Fatal(err)
+		} else {
+			SECRETPHRASE = str
+		}
+	}
+
 	if err := env.openDB(nil); err != nil {
 		env.Fatal(err)
 	}
@@ -29,7 +38,7 @@ func main() {
 
 	// Login
 	router.Handle("POST", "/login", NewHandler(
-		Login,
+		secretWrap(Login, SECRETPHRASE),
 		env,
 	))
 
@@ -106,7 +115,7 @@ func main() {
 
 	http.ListenAndServe(SERVERADDRESS, Middlewares(
 		router,
-		JWT(env),
+		JWT(SECRETPHRASE, env),
 		verbose(env),
 		RequestId(),
 	))

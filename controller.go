@@ -64,9 +64,10 @@ func Login(r *http.Request, env Enviroment) ResponseIface {
 		model  []*models.User
 		token  *Token
 
-		flt  = models.NewFilter()
-		form = models.User{}
-		id   = r.Context().Value("Id")
+		flt    = models.NewFilter()
+		form   = models.User{}
+		id     = r.Context().Value("Id")
+		secret = r.Context().Value("Secret").(string)
 	)
 
 	if err = parseFormTo(r, &form); err != nil {
@@ -129,7 +130,7 @@ func Login(r *http.Request, env Enviroment) ResponseIface {
 	claims.Uid = model[0].Id
 	claims.Subject = string(form.Email)
 
-	token = NewToken([]byte("secret")).
+	token = NewToken([]byte(secret)).
 		Sign(claims)
 
 	return NewResponse(token)
@@ -400,6 +401,15 @@ func aliasGroupWrap(fn Controller) Controller {
 	return func(r *http.Request, env Enviroment) ResponseIface {
 		return fn(
 			r.WithContext(context.WithValue(r.Context(), "Group", "alias")),
+			env,
+		)
+	}
+}
+
+func secretWrap(fn Controller, secret string) Controller {
+	return func(r *http.Request, env Enviroment) ResponseIface {
+		return fn(
+			r.WithContext(context.WithValue(r.Context(), "Secret", secret)),
 			env,
 		)
 	}
