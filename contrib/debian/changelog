@@ -1,3 +1,9 @@
+mbmi-go (0.5.2-1) unstable; urgency=low
+
+  * Security fix
+
+ -- supar <paulrez@gmail.com>  Tue, 29 May 2018 13:00:00 +0300
+
 mbmi-go (0.5.1-5) unstable; urgency=low
 
   * Multiple values for the fileter item
