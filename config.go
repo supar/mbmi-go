@@ -15,6 +15,8 @@ var (
 	SERVERADDRESS,
 	// Assets
 	ASSETSPATH,
+	// JWT secret
+	SECRETPHRASE,
 	// Build date and time
 	BUILDDATE,
 	// Database user
@@ -37,6 +39,7 @@ func init() {
 	}
 
 	flag.StringVar(&ASSETSPATH, "A", "/usr/share/mbmi/assets", "Frontend")
+	flag.StringVar(&SECRETPHRASE, "S", "", "Use static secret, othervise create it random on start")
 	flag.StringVar(&SERVERADDRESS, "L", "127.0.0.1:8080", "Address listen on")
 	flag.StringVar(&DBUSER, "Du", "nobody", "Database user")
 	flag.StringVar(&DBPASS, "Dp", "", "Database user password")
