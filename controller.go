@@ -37,8 +37,18 @@ func Protect(fn Controller) Controller {
 	return func(r *http.Request, env Enviroment) ResponseIface {
 		var (
 			id = r.Context().Value("Id").(string)
-			tk = r.Context().Value("Token").(*Token)
+			tk = r.Context().Value("Token").(IdentityIface)
 		)
+
+		if tk.Subject() != "authentication" {
+			env.Error("%s: Invalid token: subject(authentication)=%s", id, tk.Subject())
+
+			return NewResponse(&Error{
+				Code:    401,
+				Message: http.StatusText(401),
+				Title:   http.StatusText(401),
+			})
+		}
 
 		if !tk.Valid() {
 			env.Error("%s: Unauthorized, token is nil or not valid", id)
@@ -59,15 +69,15 @@ func Protect(fn Controller) Controller {
 // Authorization
 func Login(r *http.Request, env Enviroment) ResponseIface {
 	var (
-		claims TokenClaims
-		err    error
-		model  []*models.User
-		token  *Token
+		err   error
+		model []*models.User
+		token *Token
+		claim TokenClaims
 
 		flt    = models.NewFilter()
 		form   = models.User{}
 		id     = r.Context().Value("Id")
-		secret = r.Context().Value("Secret").(string)
+		secret = r.Context().Value(secretKey).(string)
 	)
 
 	if err = parseFormTo(r, &form); err != nil {
@@ -126,12 +136,10 @@ func Login(r *http.Request, env Enviroment) ResponseIface {
 		})
 	}
 
-	claims = NewClaims()
-	claims.Uid = model[0].Id
-	claims.Subject = string(form.Email)
+	claim = NewClaims(model[0].Id, "authentication")
+	claim.Issuer = string(form.Email)
 
-	token = NewToken([]byte(secret)).
-		Sign(claims)
+	token = NewToken([]byte(secret)).Sign(claim)
 
 	return NewResponse(token)
 }
@@ -409,7 +417,7 @@ func aliasGroupWrap(fn Controller) Controller {
 func secretWrap(fn Controller, secret string) Controller {
 	return func(r *http.Request, env Enviroment) ResponseIface {
 		return fn(
-			r.WithContext(context.WithValue(r.Context(), "Secret", secret)),
+			r.WithContext(context.WithValue(r.Context(), secretKey, secret)),
 			env,
 		)
 	}
