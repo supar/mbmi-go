@@ -21,7 +21,7 @@ RUN echo "Europe/Moscow" > /etc/timezone && dpkg-reconfigure --frontend noninter
 ENV LANG C.UTF-8
 
 # Go install section
-RUN curl -sSL https://storage.googleapis.com/golang/go1.8.3.linux-amd64.tar.gz \
+RUN curl -sSL https://storage.googleapis.com/golang/go1.9.2.linux-amd64.tar.gz \
     | tar -v -C /usr/local -xz
 
 ENV PATH /usr/local/go/bin:$PATH
@@ -31,6 +31,7 @@ ENV PATH /go/bin:$PATH
 
 # Install beegoo dependency
 RUN go get github.com/julienschmidt/httprouter && \
+    go get github.com/gorilla/schema && \
     go get github.com/dgrijalva/jwt-go && \
     go get github.com/supar/dsncfg && \
     go get github.com/smartystreets/goconvey/convey && \
