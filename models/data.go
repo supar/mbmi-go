@@ -19,6 +19,8 @@ type Datastore interface {
 	Transports(FilterIface, bool) ([]*Transport, uint64, error)
 	MailSearch(FilterIface, bool) ([]string, uint64, error)
 	SetUser(*User) error
+	SetUserSecret(*User) error
+	SetStatImapLogin(*Stat) error
 }
 
 type Debug func(v ...interface{})
