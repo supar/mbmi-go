@@ -42,6 +42,12 @@ func main() {
 		env,
 	))
 
+	// Authentication tokens
+	router.Handle("GET", "/application/jwt/:uid", NewHandler(
+		Protect(GetUserJWT),
+		env,
+	))
+
 	// Get mail aliases
 	router.Handle("GET", "/aliases/groups", NewHandler(
 		Protect(aliasGroupWrap(Aliases)),
@@ -106,6 +112,13 @@ func main() {
 		env,
 	))
 
+	// Web hooks
+	// Update imap logins
+	router.Handle("POST", "/stat/imap/:uid", NewHandler(
+		Protect(StatImapLogin),
+		env,
+	))
+
 	// Handle NotFound
 	if ASSETSPATH != "" {
 		router.NotFound = http.FileServer(http.Dir(ASSETSPATH))
@@ -116,6 +129,7 @@ func main() {
 	http.ListenAndServe(SERVERADDRESS, Middlewares(
 		router,
 		JWT(SECRETPHRASE, env),
+		ApplicationToken(env),
 		verbose(env),
 		RequestId(),
 	))
