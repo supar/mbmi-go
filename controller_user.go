@@ -277,3 +277,104 @@ func SetUser(r *http.Request, env Enviroment) ResponseIface {
 
 	return NewResponse(nil)
 }
+
+// GetUserJWT returns user JWT and updates secret
+func GetUserJWT(r *http.Request, env Enviroment) ResponseIface {
+	var (
+		err    error
+		params routerParams
+		uid    int64
+		model  []*models.User
+		secret string
+		token  *Token
+		claim  TokenClaims
+
+		flt = models.NewFilter()
+		id  = r.Context().Value("Id")
+	)
+
+	params = r.Context().Value("Params").(routerParams)
+
+	if uidStr := params.ByName("uid"); uidStr == "me" {
+		uid = r.Context().Value("Token").(*Token).Identity()
+	} else {
+		uid, err = strconv.ParseInt(uidStr, 10, 32)
+	}
+
+	if err != nil || uid < 1 {
+		if err != nil {
+			env.Error("%s: %s", id, err.Error())
+		}
+
+		return NewResponse(&Error{
+			Code:    404,
+			Message: "empty user id",
+			Title:   http.StatusText(404),
+		})
+	}
+
+	flt.Where("id", uid)
+
+	if model, _, err = env.Users(flt, false); err != nil {
+		env.Error("%s: %s", id, err.Error())
+
+		return NewResponse(&Error{
+			Code:    500,
+			Message: "Cannot fetch user from database",
+			Title:   http.StatusText(500),
+		})
+	}
+
+	if len(model) != 1 {
+		env.Error("%s: Can't find user with id=(%d)", id, uid)
+
+		return NewResponse(&Error{
+			Code:    404,
+			Message: http.StatusText(404),
+			Title:   http.StatusText(404),
+		})
+	}
+
+	if len(model[0].Token()) < 32 {
+		env.Error("%s: It seems application empty token=(%s)", id, model[0].Token())
+
+		return NewResponse(&Error{
+			Code:    500,
+			Message: "Application token required",
+			Title:   http.StatusText(500),
+		})
+	}
+
+	if secret, err = createSecret(64, false, false, false); err != nil {
+		env.Error("%s: %s", id, err.Error())
+
+		return NewResponse(&Error{
+			Code:    500,
+			Message: "Internal Server Error",
+			Title:   http.StatusText(500),
+		})
+	}
+
+	model[0].SetSecret(secret)
+
+	env.Debug("%s: Update user secret", id)
+
+	if err = env.SetUserSecret(model[0]); err != nil {
+		env.Error("%s: %s", id, err.Error())
+
+		return NewResponse(&Error{
+			Code:    500,
+			Message: "Cannot save user data",
+			Title:   http.StatusText(500),
+		})
+	}
+
+	claim = NewClaims(model[0].Id, "authentication")
+	claim.Issuer = model[0].Login + "@" + model[0].DomainName
+
+	env.Debug("%s: claim: %#v", id, claim)
+
+	token = NewToken([]byte(secret)).Sign(claim)
+
+	return NewResponse(token)
+}
