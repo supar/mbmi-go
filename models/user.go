@@ -2,6 +2,7 @@ package models
 
 import (
 	"database/sql"
+	"strings"
 )
 
 type User struct {
@@ -19,14 +20,18 @@ type User struct {
 	Sieve      Boolean `json:"sieve" schema:"sieve"`
 	Manager    Boolean `json:"manager" schema:"manager"`
 	Email      Email   `json:"email" schema:"email"`
+
+	// protected
+	secret string
+	token  string
 }
 
 func (s *DB) Users(flt FilterIface, cnt bool) (m []*User, count uint64, err error) {
 	var (
-		query     *Query
-		query_str string
-		args      []interface{}
-		rows      *sql.Rows
+		query    *Query
+		queryStr string
+		args     []interface{}
+		rows     *sql.Rows
 	)
 
 	if flt == nil {
@@ -58,16 +63,18 @@ func (s *DB) Users(flt FilterIface, cnt bool) (m []*User, count uint64, err erro
 		", `u`.`sieve` `sieve`" +
 		", `u`.`manager` `manager`" +
 		", `t`.`domain` `domainname`" +
+		", `u`.`secret` `secret`" +
+		", `u`.`token` `token`" +
 		" " +
 		"FROM `users` AS `u` " +
 		"LEFT JOIN `transport` `t` ON (`u`.`domid` = `t`.`id`) "
 
 	// Add where
-	if query_str, args, err = query.Compile(); err != nil {
+	if queryStr, args, err = query.Compile(); err != nil {
 		return
 	}
 
-	if rows, err = s.Query(query_str, args...); err != nil {
+	if rows, err = s.Query(queryStr, args...); err != nil {
 		return nil, 0, err
 	}
 
@@ -92,11 +99,15 @@ func (s *DB) Users(flt FilterIface, cnt bool) (m []*User, count uint64, err erro
 			&i.Sieve,
 			&i.Manager,
 			&i.DomainName,
+			&i.secret,
+			&i.token,
 		)
 
 		if err != nil {
 			return nil, 0, err
 		}
+
+		i.Email = Email(strings.Join([]string{i.Login, i.DomainName}, "@"))
 
 		m = append(m, i)
 	}
@@ -112,11 +123,11 @@ func (s *DB) Users(flt FilterIface, cnt bool) (m []*User, count uint64, err erro
 
 		query.Un("LIMIT")
 
-		if query_str, args, err = query.Compile(); err != nil {
+		if queryStr, args, err = query.Compile(); err != nil {
 			return
 		}
 
-		err = s.QueryRow(query_str, args...).Scan(&count)
+		err = s.QueryRow(queryStr, args...).Scan(&count)
 
 		if err != nil && err == sql.ErrNoRows {
 			err = nil
@@ -193,6 +204,32 @@ func (s *DB) SetUser(user *User) (err error) {
 	return
 }
 
+// SetUserSecret updates user token secret
+func (s *DB) SetUserSecret(user *User) (err error) {
+	_, err = s.Exec("UPDATE `users` SET "+
+		"`secret` = ? "+
+		" WHERE `id` = ?",
+		user.secret,
+		user.Id)
+
+	return
+}
+
+// Secret returns user secret saved to the struct before
+func (u *User) Secret() string {
+	return u.secret
+}
+
+// SetSecret updates secret in the struct
+func (u *User) SetSecret(secret string) {
+	u.secret = secret
+}
+
+// Token returns application token saved to the struct before
+func (u *User) Token() string {
+	return u.token
+}
+
 func userWhere(arg *NamedArg) (string, error) {
 	switch arg.Name {
 	case "emlike":
@@ -218,6 +255,15 @@ func userWhere(arg *NamedArg) (string, error) {
 
 	case "manager":
 		return "`u`.`manager` = ?", nil
+
+	case "token":
+		return "`u`.`token` = ?", nil
+
+	case "imap":
+		return "`u`.`imap` = ?", nil
+
+	case "pop3":
+		return "`u`.`pop3` = ?", nil
 
 	case "mode_on":
 		return "(`u`.`smtp` = 1 OR `u`.`imap` = 1 OR `u`.`pop3` = 1)", nil
