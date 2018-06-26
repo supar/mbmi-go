@@ -14,22 +14,22 @@ type routerParams interface {
 	ByName(string) string
 }
 
-// Extend basic httprouter
+// Router extends basic httprouter
 type Router struct {
 	// Наследуемый маршрутизатор
 	*httprouter.Router
 }
 
-// Create new router
+// NewRouter creates instance of the Router
 func NewRouter() *Router {
 	return &Router{
 		Router: httprouter.New(),
 	}
 }
 
-// Override httprouter handle function to backward default Handle from bet/http package
+// Handle requests httprouter handle function to backward default Handle from net/http package
 // Put context to the request
-func (this *Router) Handle(method, path string, handle http.HandlerFunc) {
+func (r *Router) Handle(method, path string, handle http.HandlerFunc) {
 	this.Router.Handle(method, path, func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 		var (
 			ctx = context.WithValue(r.Context(), "Params", p)
@@ -42,8 +42,8 @@ func (this *Router) Handle(method, path string, handle http.HandlerFunc) {
 
 func parseFormTo(r *http.Request, v interface{}) (err error) {
 	var (
-		json_decoder   *json.Decoder
-		schema_decoder *schema.Decoder
+		jsonDecoder   *json.Decoder
+		schemaDecoder *schema.Decoder
 	)
 
 	if err = r.ParseForm(); err != nil {
@@ -53,10 +53,10 @@ func parseFormTo(r *http.Request, v interface{}) (err error) {
 	if t := r.Header.Get("Content-Type"); strings.Contains(t, "application/json") {
 		defer r.Body.Close()
 
-		json_decoder = json.NewDecoder(r.Body)
-		return json_decoder.Decode(&v)
+		jsonDecoder = json.NewDecoder(r.Body)
+		return jsonDecoder.Decode(&v)
 	}
 
-	schema_decoder = schema.NewDecoder()
-	return schema_decoder.Decode(v, r.PostForm)
+	schemaDecoder = schema.NewDecoder()
+	return schemaDecoder.Decode(v, r.PostForm)
 }
