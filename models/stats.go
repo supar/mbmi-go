@@ -21,8 +21,10 @@ func (s *DB) SetStatImapLogin(stat *Stat) (err error) {
 		", `service`" +
 		", `created`" +
 		", `ip`" +
-		") VALUES (?, ?, NOW(), INET_ATON(?)) " +
-		"ON DUPLICATE KEY UPDATE `attemt` = `attemt` + 1"
+		", `updated`" +
+		") VALUES (?, ?, NOW(), INET_ATON(?), NOW()) " +
+		"ON DUPLICATE KEY UPDATE `attempt` = `attempt` + 1" +
+		", `updated` = NOW()"
 
 	_, err = s.Exec(
 		query,

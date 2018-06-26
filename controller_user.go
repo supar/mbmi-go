@@ -84,10 +84,10 @@ func User(r *http.Request, env Enviroment) ResponseIface {
 
 	params = r.Context().Value("Params").(routerParams)
 
-	if uid_str := params.ByName("uid"); uid_str == "me" {
-		uid = r.Context().Value("Token").(*Token).Identity()
+	if uidStr := params.ByName("uid"); uidStr == "me" {
+		uid = r.Context().Value(tokenKey).(IdentityIface).Identity()
 	} else {
-		uid, err = strconv.ParseInt(uid_str, 10, 32)
+		uid, err = strconv.ParseInt(uidStr, 10, 32)
 	}
 
 	if err != nil || uid < 1 {

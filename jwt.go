@@ -25,14 +25,14 @@ type IdentityIface interface {
 // TokenClaims represents extention for the standard claims
 // from JWT package
 type TokenClaims struct {
-	uid int64 `json:"uid"`
+	UID int64 `json:"uid"`
 	jwt.StandardClaims
 }
 
 // NewClaims returns new token claims
 func NewClaims(uid int64, subject string) TokenClaims {
 	return TokenClaims{
-		uid: uid,
+		UID: uid,
 		StandardClaims: jwt.StandardClaims{
 			Subject: subject,
 		},
@@ -70,7 +70,7 @@ func (s *Token) Parse() (err error) {
 // Identity returns user id
 func (s *Token) Identity() int64 {
 	if s.t != nil {
-		return s.t.Claims.(*TokenClaims).uid
+		return s.t.Claims.(*TokenClaims).UID
 	}
 
 	return -1
