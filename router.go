@@ -30,13 +30,13 @@ func NewRouter() *Router {
 // Handle requests httprouter handle function to backward default Handle from net/http package
 // Put context to the request
 func (r *Router) Handle(method, path string, handle http.HandlerFunc) {
-	this.Router.Handle(method, path, func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+	r.Router.Handle(method, path, func(w http.ResponseWriter, req *http.Request, p httprouter.Params) {
 		var (
-			ctx = context.WithValue(r.Context(), "Params", p)
+			ctx = context.WithValue(req.Context(), "Params", p)
 		)
 
-		r = r.WithContext(ctx)
-		handle(w, r)
+		req = req.WithContext(ctx)
+		handle(w, req)
 	})
 }
 
