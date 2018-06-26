@@ -37,7 +37,7 @@ func Protect(fn Controller) Controller {
 	return func(r *http.Request, env Enviroment) ResponseIface {
 		var (
 			id = r.Context().Value("Id").(string)
-			tk = r.Context().Value("Token").(IdentityIface)
+			tk = r.Context().Value(tokenKey).(IdentityIface)
 		)
 
 		if tk.Subject() != "authentication" {

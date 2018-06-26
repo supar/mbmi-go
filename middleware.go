@@ -15,6 +15,7 @@ type key int
 const (
 	requestIDKey key = iota
 	secretKey
+	tokenKey
 )
 
 // WrapHandler represents type http.Handler
@@ -61,7 +62,7 @@ func JWT(secret string, log LogIface) WrapHandler {
 				}
 			}
 
-			ctx = context.WithValue(r.Context(), "Token", tk)
+			ctx = context.WithValue(r.Context(), tokenKey, tk)
 			r = r.WithContext(ctx)
 
 			next.ServeHTTP(w, r)
