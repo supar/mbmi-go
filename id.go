@@ -7,10 +7,10 @@ import (
 )
 
 const (
-	_lower        = "abcdefghijklmnopqrstuvwxyz"
-	_upper        = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	_digits       = "0123456789"
-	_symbols      = "~!@#$%^&*()_+-={}|[]:<>?,./"
+	lowerStore    = "abcdefghijklmnopqrstuvwxyz"
+	upperStore    = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	digitsStore   = "0123456789"
+	symbolsStore  = "~!@#$%^&*()_+-={}|[]:<>?,./"
 	letterIdxBits = 6                    // 6 bits to represent a letter index
 	letterIdxMask = 1<<letterIdxBits - 1 // All 1-bits, as many as letterIdxBits
 	letterIdxMax  = 63 / letterIdxBits   // # of letter indices fitting in 63 bits
@@ -18,9 +18,10 @@ const (
 
 var src = rand.NewSource(time.Now().UnixNano())
 
+// RandStringId creates random sting
 func RandStringId(n int) string {
 	var (
-		letterBytes = _lower + _upper + _digits
+		letterBytes = lowerStore + upperStore + digitsStore
 		b           = make([]byte, n)
 	)
 
@@ -40,9 +41,9 @@ func RandStringId(n int) string {
 	return string(b)
 }
 
-func createSecret(n int, no_upper, no_digits, no_symbols bool) (str string, err error) {
+func createSecret(n int, noUpper, noDigits, noSymbols bool) (str string, err error) {
 	var (
-		letters = _lower
+		letters = lowerStore
 		output  = make([]byte, n)
 		random  = make([]byte, n)
 	)
@@ -51,16 +52,16 @@ func createSecret(n int, no_upper, no_digits, no_symbols bool) (str string, err 
 		return "", err
 	}
 
-	if !no_upper {
-		letters += _upper
+	if !noUpper {
+		letters += upperStore
 	}
 
-	if !no_digits {
-		letters += _digits
+	if !noDigits {
+		letters += digitsStore
 	}
 
-	if !no_symbols {
-		letters += _symbols
+	if !noSymbols {
+		letters += symbolsStore
 	}
 
 	for all, i := len(letters), n-1; i >= 0; {
