@@ -142,6 +142,12 @@ func main() {
 		env,
 	))
 
+	// Accesses
+	router.Handle("GET", "/accesses", NewHandler(
+		Protect(Accesses),
+		env,
+	))
+
 	// Spamm
 	router.Handle("GET", "/spam", NewHandler(
 		Protect(Spam),

@@ -1,3 +1,9 @@
+mbmi-go (0.7.0-1) unstable; urgency=low
+
+  * REJECT/OK list for the IPs or domains
+
+ -- supar <paulrez@gmail.com>  Wed, 27 Jun 2018 13:00:00 +0300
+
 mbmi-go (0.6.1-2) unstable; urgency=low
 
   * Bug fixes

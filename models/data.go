@@ -21,6 +21,7 @@ type Datastore interface {
 	SetUser(*User) error
 	SetUserSecret(*User) error
 	SetStatImapLogin(*Stat) error
+	Accesses(FilterIface, bool) ([]*Access, uint64, error)
 }
 
 type Debug func(v ...interface{})

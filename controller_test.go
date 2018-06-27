@@ -886,3 +886,30 @@ func Test_Authentication(t *testing.T) {
 		}
 	}
 }
+
+func Test_GetAccessesList(t *testing.T) {
+	db, mock := initDBMock(t)
+	req, _ := request("GET", "/accesses", nil)
+	env := initTestBus(t, false)
+
+	rows := sqlmock.NewRows([]string{
+		"client",
+		"access",
+	}).
+		AddRow("1.1.1.1", "REJECT")
+
+	count := sqlmock.NewRows([]string{"count"}).AddRow(1)
+
+	mock.ExpectQuery("SELECT").WillReturnRows(rows)
+	mock.ExpectQuery("SELECT COUNT").WillReturnRows(count)
+
+	if err := env.openDB(db); err != nil {
+		t.Error(err)
+	}
+
+	resp := Accesses(req, env)
+
+	if !resp.Ok() {
+		t.Errorf("Required success response, but got %d", resp.Status())
+	}
+}
