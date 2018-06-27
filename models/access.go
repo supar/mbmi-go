@@ -8,7 +8,7 @@ import (
 // access list
 type Access struct {
 	Client string `json:"client"`
-	Access string `json:"Access"`
+	Access string `json:"access"`
 }
 
 // Accesses returns the the list of the rejected or granted addresses or IPs
