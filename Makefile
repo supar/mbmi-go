@@ -8,7 +8,7 @@ BUILD_DIR = $(notdir $(shell pwd))
 BUILD_DATE = $(shell date +%Y%m%d%H%M%S)
 BUILD_ARCH = amd64
 
-LDFLAGS = -ldflags "-X main.NAME=${NAME} -X main.VERSION=${VERSION} -X main.BUILDDATE=${BUILD_DATE}"
+LDFLAGS = -ldflags "-X main.programName=${NAME} -X main.programVersion=${VERSION} -X main.buildDate=${BUILD_DATE}"
 
 SOURCE_FILES = $(shell ls -AB | grep -i 'version$$\|makefile$$\|\.go$$')
 

@@ -65,14 +65,14 @@ func NewLogger() (logger *Log) {
 	var (
 		err  error
 		flag = log.Ldate | log.Ltime | log.Lmicroseconds
-		prog = NAME + " "
+		prog = programName + " "
 	)
 
 	logger = &Log{
 		Logger: log.New(os.Stdout, prog, flag),
 	}
 
-	if CONSOLELOG == 0 {
+	if ConsoleLogFlag == 0 {
 		if logger.syslog, err = syslog.New(syslog.LOG_NOTICE|syslog.LOG_USER, prog); err != nil {
 			logger.Critical(err)
 		} else {
