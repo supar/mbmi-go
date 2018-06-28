@@ -27,23 +27,15 @@ const (
 	LevelDebug
 )
 
-// Logger interface
+// LogIface represents all level methods
 type LogIface interface {
-	//	Fatalf(format string, v ...interface{})
-	//	Fatalln(v ...interface{})
-	//	Panic(v ...interface{})
-	//	Panicf(format string, v ...interface{})
-	//	Panicln(v ...interface{})
-	//	Print(v ...interface{})
-	//	Printf(format string, v ...interface{})
-	//	Println(v ...interface{})
-
 	Critical(v ...interface{})
 	Error(v ...interface{})
 	Fatal(v ...interface{})
 	LogIfaceInfo
 }
 
+// LogIfaceInfo represents informational methods
 type LogIfaceInfo interface {
 	Warn(v ...interface{})
 	Notice(v ...interface{})
@@ -51,16 +43,15 @@ type LogIfaceInfo interface {
 	Debug(v ...interface{})
 }
 
-// Расширение стандарной библиотеки log
+// Log is extended information of the base log package
 type Log struct {
 	*log.Logger
 
-	// Уровень логирования
 	levelLog int
 	syslog   *syslog.Writer
 }
 
-// Инициализируй логер
+// NewLogger returns Log
 func NewLogger() (logger *Log) {
 	var (
 		err  error
@@ -84,16 +75,16 @@ func NewLogger() (logger *Log) {
 }
 
 // Установи уровень логирования
-func (this *Log) SetLevel(l int) {
-	this.levelLog = l
+func (l *Log) SetLevel(level int) {
+	l.levelLog = level
 }
 
 // Поверь вхождение запрашиваемого уровня в допустимую
 // границу логирования
-func (this *Log) level(l int) bool {
+func (l *Log) level(level int) bool {
 	for i := LevelEmergency; i <= LevelDebug; i++ {
-		if i == l {
-			if i > this.levelLog {
+		if i == level {
+			if i > l.levelLog {
 				return false
 			}
 		}
@@ -104,7 +95,7 @@ func (this *Log) level(l int) bool {
 // Единая точка обработки входиящих сообщений согласно
 // их уровню и установленной границы логирования
 // К сообщению добавляется префикс описание уровня сообщения
-func (this *Log) print(level int, v []interface{}) {
+func (l *Log) print(level int, v []interface{}) {
 	var (
 		ln int
 
@@ -134,29 +125,29 @@ func (this *Log) print(level int, v []interface{}) {
 		msg = fmt.Sprint(v...)
 	}
 
-	if this.syslog == nil {
-		this.Print(msg)
+	if l.syslog == nil {
+		l.Print(msg)
 
 		return
 	}
 
 	switch level {
 	case LevelEmergency:
-		this.syslog.Emerg(msg)
+		l.syslog.Emerg(msg)
 	case LevelAlert:
-		this.syslog.Alert(msg)
+		l.syslog.Alert(msg)
 	case LevelCritical:
-		this.syslog.Crit(msg)
+		l.syslog.Crit(msg)
 	case LevelError:
-		this.syslog.Err(msg)
+		l.syslog.Err(msg)
 	case LevelWarning:
-		this.syslog.Warning(msg)
+		l.syslog.Warning(msg)
 	case LevelNotice:
-		this.syslog.Notice(msg)
+		l.syslog.Notice(msg)
 	case LevelInformational:
-		this.syslog.Info(msg)
+		l.syslog.Info(msg)
 	case LevelDebug:
-		this.syslog.Debug(msg)
+		l.syslog.Debug(msg)
 	}
 }
 
@@ -186,36 +177,36 @@ func getPrefix(level int) string {
 	return "[" + prefix + "] "
 }
 
-func (this *Log) Emergency(v ...interface{}) {
-	this.print(LevelEmergency, v)
+func (l *Log) Emergency(v ...interface{}) {
+	l.print(LevelEmergency, v)
 	os.Exit(1)
 }
 
-func (this *Log) Alert(v ...interface{}) {
-	this.print(LevelAlert, v)
+func (l *Log) Alert(v ...interface{}) {
+	l.print(LevelAlert, v)
 }
 
-func (this *Log) Critical(v ...interface{}) {
-	this.print(LevelCritical, v)
+func (l *Log) Critical(v ...interface{}) {
+	l.print(LevelCritical, v)
 	os.Exit(1)
 }
 
-func (this *Log) Error(v ...interface{}) {
-	this.print(LevelError, v)
+func (l *Log) Error(v ...interface{}) {
+	l.print(LevelError, v)
 }
 
-func (this *Log) Warn(v ...interface{}) {
-	this.print(LevelWarning, v)
+func (l *Log) Warn(v ...interface{}) {
+	l.print(LevelWarning, v)
 }
 
-func (this *Log) Notice(v ...interface{}) {
-	this.print(LevelNotice, v)
+func (l *Log) Notice(v ...interface{}) {
+	l.print(LevelNotice, v)
 }
 
-func (this *Log) Info(v ...interface{}) {
-	this.print(LevelInformational, v)
+func (l *Log) Info(v ...interface{}) {
+	l.print(LevelInformational, v)
 }
 
-func (this *Log) Debug(v ...interface{}) {
-	this.print(LevelDebug, v)
+func (l *Log) Debug(v ...interface{}) {
+	l.print(LevelDebug, v)
 }
