@@ -4,13 +4,15 @@ import (
 	"encoding/json"
 )
 
+// ResponseIface represents interface to work with
+// response data
 type ResponseIface interface {
 	Get() ([]byte, error)
 	Ok() bool
 	Status() int
 }
 
-// Default response structure
+// Response is structured response
 type Response struct {
 	Success bool        `json:"success"`
 	Count   uint64      `json:"count"`
@@ -18,13 +20,15 @@ type Response struct {
 	Error   *Error      `json:"error,omitempty"`
 }
 
-// Common error structure in response
+// Error is a trivial implementation of error with
+// code, message and title to use in the response
 type Error struct {
 	Code    int    `json:"code"`
 	Message string `json:"message"`
 	Title   string `json:"title"`
 }
 
+// NewResponse returns Response given a data
 func NewResponse(send interface{}) (response *Response) {
 	response = &Response{
 		Success: true,
@@ -60,51 +64,17 @@ func NewResponse(send interface{}) (response *Response) {
 	return
 }
 
-//func NewResponseOk(v interface{}) *Response {
-//	return &Response{
-//		Data:    v,
-//		Success: true,
-//	}
-//}
-//
-//func NewResponseError(code int, err interface{}) *Response {
-//	var msg string
-//
-//	if code == 0 {
-//		code = 500
-//	}
-//
-//	if c := http.StatusText(code); c != "" {
-//		msg = c
-//	}
-//
-//	if err != nil {
-//		switch err.(type) {
-//		case error:
-//			msg = err.(error).Error()
-//
-//		case string:
-//			msg = err.(string)
-//		}
-//	}
-//
-//	return &Response{
-//		Success: false,
-//		Error: &Error{
-//			Code:    code,
-//			Message: msg,
-//		},
-//	}
-//}
-
+// Get returns encoded data ready to send to client
 func (s *Response) Get() (data []byte, err error) {
 	return json.Marshal(s)
 }
 
+// Ok returns response state, if Success field is false
 func (s *Response) Ok() bool {
 	return s.Success
 }
 
+// Status returns response code, default 200
 func (s *Response) Status() int {
 	if s.Error != nil {
 		return s.Error.Code
