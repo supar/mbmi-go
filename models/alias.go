@@ -119,6 +119,12 @@ func (s *DB) SetAlias(alias *Alias) (err error) {
 	return
 }
 
+func (s *DB) DelAlias(id int64) (err error) {
+	_, err = s.Exec("DELETE FROM `aliases` WHERE `id` = ?", id)
+
+	return
+}
+
 func aliasWhere(arg *NamedArg) (string, error) {
 	switch arg.Name {
 	case "id":

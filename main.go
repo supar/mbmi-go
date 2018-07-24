@@ -119,6 +119,10 @@ func main() {
 		Protect(SetAlias),
 		env,
 	))
+	router.Handle("DELETE", "/alias/:aid", NewHandler(
+		Protect(DelAlias),
+		env,
+	))
 
 	// Get users (mailboxes)
 	router.Handle("GET", "/users", NewHandler(

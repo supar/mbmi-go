@@ -14,6 +14,7 @@ var (
 type Datastore interface {
 	Aliases(FilterIface, bool) ([]*Alias, uint64, error)
 	SetAlias(*Alias) error
+	DelAlias(int64) error
 	Users(FilterIface, bool) ([]*User, uint64, error)
 	Spam(FilterIface, bool) ([]*Spam, uint64, error)
 	Transports(FilterIface, bool) ([]*Transport, uint64, error)

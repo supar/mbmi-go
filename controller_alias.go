@@ -190,3 +190,40 @@ func SetAlias(r *http.Request, env Enviroment) ResponseIface {
 
 	return NewResponse(nil)
 }
+
+func DelAlias(r *http.Request, env Enviroment) ResponseIface {
+	var (
+		aid int64
+		err error
+
+		id     = r.Context().Value("Id")
+		params = r.Context().Value("Params").(routerParams)
+	)
+
+	// Check
+	if aid, err = strconv.ParseInt(params.ByName("aid"), 10, 64); err != nil || aid < 1 {
+		if err == nil {
+			err = errors.New("Invalid record id")
+		}
+
+		env.Error("%s: %s (id=%d)", id, err.Error(), aid)
+
+		return NewResponse(&Error{
+			Code:    500,
+			Message: err.Error(),
+			Title:   http.StatusText(500),
+		})
+	}
+
+	if err = env.DelAlias(aid); err != nil {
+		env.Error("%s: %s", id, err.Error())
+
+		return NewResponse(&Error{
+			Code:    500,
+			Message: "Cannot remove alias data",
+			Title:   http.StatusText(500),
+		})
+	}
+
+	return NewResponse(nil)
+}
