@@ -1,4 +1,4 @@
-FROM debian:wheezy
+FROM debian:stretch
 MAINTAINER  Pavel "paulrez@gmail.com"
 
 # Get rid of the debconf messages
@@ -21,7 +21,7 @@ RUN echo "Europe/Moscow" > /etc/timezone && dpkg-reconfigure --frontend noninter
 ENV LANG C.UTF-8
 
 # Go install section
-RUN curl -sSL https://storage.googleapis.com/golang/go1.9.2.linux-amd64.tar.gz \
+RUN curl -sSL https://storage.googleapis.com/golang/go1.10.5.linux-amd64.tar.gz \
     | tar -v -C /usr/local -xz
 
 ENV PATH /usr/local/go/bin:$PATH
