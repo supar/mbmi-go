@@ -35,6 +35,15 @@ func (n *NamedArg) Set(v ...interface{}) {
 	n.Value = data
 }
 
+// First returns first value from the Values
+func (n *NamedArg) First() (v interface{}) {
+	if n.Value != nil && len(n.Value) > 0 {
+		return n.Value[0]
+	}
+
+	return ""
+}
+
 func (n *NamedArg) Fill(v interface{}, repeat int) {
 	if repeat < 2 {
 		return
