@@ -1,7 +1,6 @@
 package models
 
 import (
-	"database/sql"
 	"testing"
 )
 
@@ -12,7 +11,7 @@ func Test_NotEmptyFilterWhere(t *testing.T) {
 
 	query := flt.(*Query)
 
-	if expr := query.Expression("WHERE"); expr != nil {
+	if _, expr := query.Expression("WHERE"); expr != nil {
 		if l := len(expr.args); l != 2 {
 			t.Errorf("Expected 2 arguments, but got %d", l)
 		}
@@ -41,7 +40,7 @@ func Test_CompileValidQueryWithWhereOrderLimit(t *testing.T) {
 	for _, expr := range query.expressions {
 		switch expr.name {
 		case "WHERE":
-			expr.callback = func(a sql.NamedArg) (string, error) {
+			expr.callback = func(a *NamedArg) (string, error) {
 				switch a.Name {
 				case "id":
 					return "`u`.`user` = ?", nil
@@ -49,12 +48,12 @@ func Test_CompileValidQueryWithWhereOrderLimit(t *testing.T) {
 					return "`u`.`login` = ?", nil
 				}
 
-				return "", UnsupportedFilterArgument
+				return "", ErrFilterArgument
 			}
 
-		case "ORDER":
-			expr.callback = func(a sql.NamedArg) (string, error) {
-				var ascDesc = a.Value.(string)
+		case "ORDER BY":
+			expr.callback = func(a *NamedArg) (string, error) {
+				var ascDesc = a.First().(string)
 
 				switch a.Name {
 				case "id":
@@ -63,7 +62,7 @@ func Test_CompileValidQueryWithWhereOrderLimit(t *testing.T) {
 					return "`u`.`login` " + ascDesc, nil
 				}
 
-				return "", UnsupportedFilterArgument
+				return "", ErrFilterArgument
 			}
 		}
 	}
@@ -74,7 +73,7 @@ func Test_CompileValidQueryWithWhereOrderLimit(t *testing.T) {
 		t.Error(err)
 	}
 
-	query_mock := "SELECT * FROM `u`.`users` WHERE `u`.`user` = ? AND `u`.`login` = ? ORDER `u`.`user` ASC,`u`.`login` DESC LIMIT ?,?"
+	query_mock := "SELECT * FROM `u`.`users` WHERE `u`.`user` = ? AND `u`.`login` = ? ORDER BY `u`.`user` ASC,`u`.`login` DESC LIMIT ?,?"
 
 	if query_mock != str {
 		t.Errorf("Expecting %s, but got %s", query_mock, str)
