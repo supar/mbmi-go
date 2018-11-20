@@ -13,6 +13,7 @@ LDFLAGS = -ldflags "-X main.programName=${NAME} -X main.programVersion=${VERSION
 SOURCE_FILES = $(shell ls -AB | grep -i 'version$$\|makefile$$\|\.go$$')
 
 # Debian build root
+DEB_CHLOG_DATE = $(shell date "+%a, %d %b %Y %T %z")
 DEB_DIR = $(shell pwd)/build/debian
 DEB_ROOT = $(DEB_DIR)/$(NAME)-$(VERSION)/debian
 DEB_CONF = $(DEB_ROOT)/$(NAME).conf
@@ -42,6 +43,8 @@ $(DEB_ROOT): contrib/debian
 	mkdir -p $(DEB_ROOT)
 	cp -ad $</* $@/
 	find $@ -type f -exec sed -i -e"s/@VERSION@/$(VERSION)/g" {} \;
+	find $@ -type f -exec sed -i -e"s/@VERSION-RELEASE@/$(VERSION)-$(RELEASE)/g" {} \;
+	find $@ -type f -exec sed -i -e"s/@CHANGELOG-DATE@/$(DEB_CHLOG_DATE)/g" {} \;
 
 $(DEB_SOURCE): $(SOURCE_FILES)
 	mkdir -p $(@D)
