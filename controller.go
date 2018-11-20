@@ -178,8 +178,13 @@ func Spam(r *http.Request, env Enviroment) ResponseIface {
 
 	flt.Where("interval", interval)
 
-	if _, ok := r.Form["sort"]; ok {
-		flt.Order(r.Form.Get("sort"), false)
+	if srt := r.FormValue("sort"); srt != "" {
+		dir := true
+		if r.FormValue("dir") == "desc" {
+			dir = false
+		}
+
+		flt.Order(srt, dir)
 	}
 
 	// Apply page limitation

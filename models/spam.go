@@ -138,11 +138,13 @@ func spamGroup(arg *NamedArg) (string, error) {
 }
 
 func spamOrder(arg *NamedArg) (string, error) {
+	var dir = arg.First().(string)
+
 	switch arg.Name {
 	case "attempt":
-		return "`attempt`", nil
+		return "`attempt` " + dir, nil
 	case "index":
-		return "`index`", nil
+		return "`index` " + dir, nil
 	}
 
 	return "", ErrFilterArgument
