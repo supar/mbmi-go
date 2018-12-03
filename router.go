@@ -12,12 +12,19 @@ import (
 // Shortcut
 type routerParams interface {
 	ByName(string) string
+	IsSet(string) bool
 }
 
 // Router extends basic httprouter
 type Router struct {
 	// Наследуемый маршрутизатор
 	*httprouter.Router
+}
+
+// Params extends basic httprouter.Params with some usefull
+// functions
+type Params struct {
+	httprouter.Params
 }
 
 // NewRouter creates instance of the Router
@@ -32,12 +39,21 @@ func NewRouter() *Router {
 func (r *Router) Handle(method, path string, handle http.HandlerFunc) {
 	r.Router.Handle(method, path, func(w http.ResponseWriter, req *http.Request, p httprouter.Params) {
 		var (
-			ctx = context.WithValue(req.Context(), "Params", p)
+			ctx = context.WithValue(req.Context(), "Params", Params{p})
 		)
 
 		req = req.WithContext(ctx)
 		handle(w, req)
 	})
+}
+
+func (p Params) IsSet(name string) bool {
+	for i := range p.Params {
+		if p.Params[i].Key == name {
+			return true
+		}
+	}
+	return false
 }
 
 func parseFormTo(r *http.Request, v interface{}) (err error) {

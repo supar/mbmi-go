@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 type Values struct {
@@ -204,7 +205,12 @@ func Test_SearchUserByEmailOrName(t *testing.T) {
 func Test_GetUnknownUser_404ShoulBe(t *testing.T) {
 	db, mock := initDBMock(t)
 	req, _ := request("GET", "/user/4", nil)
-	req = req.WithContext(context.WithValue(req.Context(), "Params", httprouter.Params{httprouter.Param{"uid", "4"}}))
+	req = req.WithContext(
+		context.WithValue(
+			req.Context(),
+			"Params",
+			Params{httprouter.Params{httprouter.Param{"uid", "4"}}},
+		))
 	env := initTestBus(t, true)
 
 	rows := sqlmock.NewRows([]string{
@@ -908,6 +914,172 @@ func Test_GetAccessesList(t *testing.T) {
 	}
 
 	resp := Accesses(req, env)
+
+	if !resp.Ok() {
+		t.Errorf("Required success response, but got %d", resp.Status())
+	}
+}
+
+func Test_GetServicesStatisticsList(t *testing.T) {
+	db, mock := initDBMock(t)
+	req, _ := request("GET", "/servicestat", nil)
+	env := initTestBus(t, false)
+
+	rows := sqlmock.NewRows([]string{
+		"uid",
+		"service",
+		"ip",
+		"last",
+		"attempt",
+	}).
+		AddRow("1", "imap", "10.0.0.1", time.Now(), "2")
+
+	count := sqlmock.NewRows([]string{"count"}).AddRow(1)
+
+	mock.ExpectQuery("SELECT.*statistcs").WillReturnRows(rows)
+	mock.ExpectQuery("SELECT COUNT").WillReturnRows(count)
+
+	if err := env.openDB(db); err != nil {
+		t.Error(err)
+	}
+
+	resp := ServicesStat(req, env)
+
+	if !resp.Ok() {
+		t.Errorf("Required success response, but got %d", resp.Status())
+	}
+}
+
+func Test_GetBccItemsList(t *testing.T) {
+	db, mock := initDBMock(t)
+	req, _ := request("GET", "/bccs", nil)
+	req = req.WithContext(context.WithValue(req.Context(), "Params", Params{httprouter.Params{}}))
+	env := initTestBus(t, false)
+
+	rows := sqlmock.NewRows([]string{
+		"id",
+		"semder",
+		"recipient",
+		"copy",
+		"comment",
+	}).
+		AddRow("1", "some@sender.net", "", "some@local.recipient", "").
+		AddRow("2", "", "some@recipient.net", "some_1@local.recipient", "")
+
+	count := sqlmock.NewRows([]string{"count"}).AddRow(2)
+
+	mock.ExpectQuery("SELECT.*bcc").WillReturnRows(rows)
+	mock.ExpectQuery("SELECT COUNT").WillReturnRows(count)
+
+	if err := env.openDB(db); err != nil {
+		t.Error(err)
+	}
+
+	resp := Bccs(req, env)
+
+	if !resp.Ok() {
+		t.Errorf("Required success response, but got %d", resp.Status())
+	}
+}
+
+func Test_GetBccItemsSearchInList(t *testing.T) {
+	db, mock := initDBMock(t)
+	req, _ := request("GET", "/bccs?query=fransome", nil)
+	req = req.WithContext(context.WithValue(req.Context(), "Params", Params{httprouter.Params{httprouter.Param{"query", "fransome"}}}))
+	env := initTestBus(t, false)
+
+	rows := sqlmock.NewRows([]string{
+		"id",
+		"semder",
+		"recipient",
+		"copy",
+		"comment",
+	}).
+		AddRow("1", "some@sender.net", "", "some@local.recipient", "").
+		AddRow("2", "", "some@recipient.net", "some_1@local.recipient", "")
+
+	count := sqlmock.NewRows([]string{"count"}).AddRow(2)
+
+	mock.ExpectQuery("SELECT.*bcc.*LIKE").WillReturnRows(rows)
+	mock.ExpectQuery("SELECT COUNT").WillReturnRows(count)
+
+	if err := env.openDB(db); err != nil {
+		t.Error(err)
+	}
+
+	resp := Bccs(req, env)
+
+	if !resp.Ok() {
+		t.Errorf("Required success response, but got %d", resp.Status())
+	}
+}
+
+func Test_GetOneBccItemWithEmptyItemID(t *testing.T) {
+	db, mock := initDBMock(t)
+	req, _ := request("GET", "/bcc/", nil)
+	req = req.WithContext(
+		context.WithValue(
+			req.Context(),
+			"Params",
+			Params{httprouter.Params{httprouter.Param{"bid", ""}}},
+		),
+	)
+	env := initTestBus(t, true)
+
+	rows := sqlmock.NewRows([]string{
+		"id",
+		"semder",
+		"recipient",
+		"copy",
+		"comment",
+	}).
+		AddRow("1", "some@sender.net", "", "some@local.recipient", "")
+
+	mock.ExpectQuery("SELECT.*bcc.*WHERE.*id").WillReturnRows(rows)
+
+	if err := env.openDB(db); err != nil {
+		t.Error(err)
+	}
+
+	resp := Bccs(req, env)
+
+	if resp.Ok() {
+		t.Errorf("Required failed response, but got %d", resp.Status())
+	}
+
+	if resp.Status() != 404 {
+		t.Errorf("Required status 404, but got %d", resp.Status())
+	}
+}
+
+func Test_GetOneBccItem(t *testing.T) {
+	db, mock := initDBMock(t)
+	req, _ := request("GET", "/bcc/", nil)
+	req = req.WithContext(
+		context.WithValue(
+			req.Context(),
+			"Params",
+			Params{httprouter.Params{httprouter.Param{"bid", "1"}}},
+		),
+	)
+	env := initTestBus(t, false)
+
+	rows := sqlmock.NewRows([]string{
+		"id",
+		"semder",
+		"recipient",
+		"copy",
+		"comment",
+	}).
+		AddRow("1", "some@sender.net", "", "some@local.recipient", "")
+
+	mock.ExpectQuery("SELECT.*bcc.*WHERE.*id").WillReturnRows(rows)
+
+	if err := env.openDB(db); err != nil {
+		t.Error(err)
+	}
+
+	resp := Bccs(req, env)
 
 	if !resp.Ok() {
 		t.Errorf("Required success response, but got %d", resp.Status())

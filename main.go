@@ -181,6 +181,18 @@ func main() {
 		env,
 	))
 
+	// Blind carbon copy (list)
+	router.Handle("GET", "/bccs", NewHandler(
+		Protect(Bccs),
+		env,
+	))
+
+	// Blind carbon copy (item)
+	router.Handle("GET", "/bcc/:bid", NewHandler(
+		Protect(Bccs),
+		env,
+	))
+
 	// Handle NotFound
 	if ASSETSPATH != "" {
 		router.NotFound = http.FileServer(http.Dir(ASSETSPATH))

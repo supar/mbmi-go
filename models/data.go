@@ -24,6 +24,7 @@ type Datastore interface {
 	SetStatImapLogin(*Stat) error
 	ServicesStat(FilterIface, bool) ([]*Stat, uint64, error)
 	Accesses(FilterIface, bool) ([]*Access, uint64, error)
+	Bccs(FilterIface, bool) ([]*BccItem, uint64, error)
 }
 
 type Debug func(v ...interface{})
