@@ -175,6 +175,12 @@ func main() {
 		env,
 	))
 
+	// Services usage statists
+	router.Handle("GET", "/servicestat", NewHandler(
+		Protect(ServicesStat),
+		env,
+	))
+
 	// Handle NotFound
 	if ASSETSPATH != "" {
 		router.NotFound = http.FileServer(http.Dir(ASSETSPATH))

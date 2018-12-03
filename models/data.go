@@ -22,6 +22,7 @@ type Datastore interface {
 	SetUser(*User) error
 	SetUserSecret(*User) error
 	SetStatImapLogin(*Stat) error
+	ServicesStat(FilterIface, bool) ([]*Stat, uint64, error)
 	Accesses(FilterIface, bool) ([]*Access, uint64, error)
 }
 

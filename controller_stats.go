@@ -3,7 +3,55 @@ package main
 import (
 	"mbmi-go/models"
 	"net/http"
+	"strconv"
 )
+
+func ServicesStat(r *http.Request, env Enviroment) ResponseIface {
+	var (
+		count uint64
+		err   error
+		resp  *Response
+		m     []*models.Stat
+
+		flt = models.NewFilter()
+		id  = r.Context().Value("Id")
+	)
+
+	if uid, _ := strconv.ParseInt(r.FormValue("uid"), 10, 32); uid > 0 {
+		flt.Where("uid", uid)
+	}
+
+	// Sort
+	srt := r.FormValue("sort")
+	if srt == "" {
+		srt = "updated"
+	}
+
+	dir := false
+	if r.FormValue("dir") == "asc" {
+		dir = true
+	}
+
+	flt.Order(srt, dir)
+
+	// Apply page limitation
+	helperLimit(r, flt)
+
+	if m, count, err = env.ServicesStat(flt, true); err != nil {
+		env.Error("%s: %s", id, err.Error())
+
+		return NewResponse(&Error{
+			Code:    500,
+			Message: "Cannot fetch services statistcs from database",
+			Title:   http.StatusText(500),
+		})
+	}
+
+	resp = NewResponse(m)
+	resp.Count = count
+
+	return resp
+}
 
 // StatImapLogin updates last imap login information
 func StatImapLogin(r *http.Request, env Enviroment) ResponseIface {
