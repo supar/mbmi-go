@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"mbmi-go/models"
 	"net/http"
 	"strconv"
@@ -86,4 +87,143 @@ func Bccs(r *http.Request, env Enviroment) ResponseIface {
 		Message: http.StatusText(404),
 		Title:   http.StatusText(404),
 	})
+}
+
+func SetBcc(r *http.Request, env Enviroment) ResponseIface {
+	var (
+		err error
+
+		form   = models.BccItem{}
+		id     = r.Context().Value("Id")
+		params = r.Context().Value("Params").(routerParams)
+	)
+
+	if err = parseFormTo(r, &form); err != nil {
+		env.Error("%s, %#v, %s", id, r.PostForm, err.Error())
+
+		return NewResponse(&Error{
+			Code:    500,
+			Message: "cannot parse form data",
+			Title:   http.StatusText(500),
+		})
+	}
+
+	// Validate Sender
+	if form.Sender != "" {
+		if _, _, err = form.Sender.Split(); err != nil {
+			env.Error("%s: %s", id, err.Error())
+
+			return NewResponse(&Error{
+				Code:    500,
+				Message: err.Error(),
+				Title:   http.StatusText(500),
+			})
+		}
+	}
+
+	// Validate Recipient
+	if form.Recipient != "" {
+		if _, _, err = form.Recipient.Split(); err != nil {
+			env.Error("%s: %s", id, err.Error())
+
+			return NewResponse(&Error{
+				Code:    500,
+				Message: err.Error(),
+				Title:   http.StatusText(500),
+			})
+		}
+	}
+
+	if form.Sender == "" && form.Recipient == "" {
+		return NewResponse(&Error{
+			Code:    500,
+			Message: "Sender or Recipient required",
+			Title:   http.StatusText(500),
+		})
+	}
+
+	// Validate Copy
+	if _, _, err = form.Copy.Split(); err != nil {
+		env.Error("%s, %s", id, err.Error())
+
+		return NewResponse(&Error{
+			Code:    500,
+			Message: err.Error(),
+			Title:   http.StatusText(500),
+		})
+	}
+
+	if r.Method == "PUT" {
+		var bid int64
+
+		// Check
+		if bid, err = strconv.ParseInt(params.ByName("bid"), 10, 64); err != nil || bid < 1 {
+			if err == nil {
+				err = errors.New("Invalid record id")
+			}
+
+			env.Error("%s: %s (id=%d)", id, err.Error(), bid)
+
+			return NewResponse(&Error{
+				Code:    500,
+				Message: err.Error(),
+				Title:   http.StatusText(500),
+			})
+		}
+
+		form.ID = bid
+	} else {
+		form.ID = 0
+	}
+
+	env.Debug("%s: Bcc item data is valid", id)
+
+	if err = env.SetBcc(&form); err != nil {
+		env.Error("%s: %s", id, err.Error())
+
+		return NewResponse(&Error{
+			Code:    500,
+			Message: "Cannot save bcc data",
+			Title:   http.StatusText(500),
+		})
+	}
+
+	return NewResponse(nil)
+}
+
+func DelBcc(r *http.Request, env Enviroment) ResponseIface {
+	var (
+		bid int64
+		err error
+
+		id     = r.Context().Value("Id")
+		params = r.Context().Value("Params").(routerParams)
+	)
+
+	// Check
+	if bid, err = strconv.ParseInt(params.ByName("bid"), 10, 64); err != nil || bid < 1 {
+		if err == nil {
+			err = errors.New("Invalid record id")
+		}
+
+		env.Error("%s: %s (id=%d)", id, err.Error(), bid)
+
+		return NewResponse(&Error{
+			Code:    500,
+			Message: err.Error(),
+			Title:   http.StatusText(500),
+		})
+	}
+
+	if err = env.DelBcc(bid); err != nil {
+		env.Error("%s: %s", id, err.Error())
+
+		return NewResponse(&Error{
+			Code:    500,
+			Message: "Cannot remove bcc item data",
+			Title:   http.StatusText(500),
+		})
+	}
+
+	return NewResponse(nil)
 }

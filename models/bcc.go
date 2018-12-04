@@ -102,6 +102,35 @@ func (s *DB) Bccs(flt FilterIface, cnt bool) (m []*BccItem, count uint64, err er
 	return
 }
 
+func (s *DB) SetBcc(b *BccItem) (err error) {
+	if b.ID > 0 {
+		_, err = s.Exec("UPDATE `bcc` SET "+
+			"`sender` = ?, `recipient` = ?, `copy` = ?, `comment` = ? "+
+			"WHERE id = ?",
+			b.Sender,
+			b.Recipient,
+			b.Copy,
+			b.Comment,
+			b.ID)
+	} else {
+		_, err = s.Exec("INSERT INTO `bcc` ("+
+			"`sender`, `recipient`, `copy`, `comment`"+
+			") VALUES (?, ?, ?, ?)",
+			b.Sender,
+			b.Recipient,
+			b.Copy,
+			b.Comment)
+	}
+
+	return
+}
+
+func (s *DB) DelBcc(id int64) (err error) {
+	_, err = s.Exec("DELETE FROM `bcc` WHERE `id` = ?", id)
+
+	return
+}
+
 func bccWhere(arg *NamedArg) (string, error) {
 	switch arg.Name {
 	case "id":

@@ -1085,3 +1085,127 @@ func Test_GetOneBccItem(t *testing.T) {
 		t.Errorf("Required success response, but got %d", resp.Status())
 	}
 }
+
+func Test_InsertUpdateDeleteBccItem(t *testing.T) {
+	var (
+		err error
+		req *http.Request
+	)
+
+	db, mock := initDBMock(t)
+	env := initTestBus(t, true)
+
+	bcc := []Tmock{
+		Tmock{
+			code:   200,
+			method: "POST",
+			values: url.Values(map[string][]string{
+				"id":        []string{"1"},
+				"sender":    []string{"alert@somedomain.net"},
+				"recipient": []string{""},
+				"copy":      []string{"foo@bar.local"},
+			}),
+		},
+		Tmock{
+			code:   500,
+			method: "POST",
+			values: url.Values(map[string][]string{
+				"recipient": []string{"alert@somedomain.net"},
+			}),
+		},
+		Tmock{
+			code:   500,
+			method: "POST",
+			values: url.Values(map[string][]string{
+				"copy": []string{"alert@somedomain.net"},
+			}),
+		},
+		Tmock{
+			code:   500,
+			method: "PUT",
+			values: url.Values(map[string][]string{
+				"id":   []string{"0"},
+				"copy": []string{"alert@somedomain.net"},
+			}),
+		},
+		Tmock{
+			code:   200,
+			method: "PUT",
+			values: url.Values(map[string][]string{
+				"id":        []string{"1"},
+				"recipient": []string{"alert@somedomain.net"},
+				"copy":      []string{"alert@somedomain.net"},
+			}),
+		},
+		Tmock{
+			code:   200,
+			method: "DELETE",
+			values: url.Values(map[string][]string{
+				"id": []string{"1"},
+			}),
+		},
+	}
+
+	if err = env.openDB(db); err != nil {
+		t.Error(err)
+	}
+
+	for _, data := range bcc {
+		if data.method != "POST" && data.method != "PUT" && data.method != "DELETE" {
+			t.Fatalf("Unexpected method in the test: %s", data.method)
+		}
+
+		router := NewRouter()
+		w := httptest.NewRecorder()
+
+		if data.method == "POST" {
+			router.Handle(data.method, "/bcc", NewHandler(SetBcc, env))
+			req, err = request(data.method, "/bcc", strings.NewReader(data.values.Encode()))
+		} else if data.method == "PUT" {
+			router.Handle(data.method, "/bcc/:bid", NewHandler(SetBcc, env))
+			req, err = request(data.method, "/bcc/"+data.values.Get("id"), strings.NewReader(data.values.Encode()))
+		} else if data.method == "DELETE" {
+			router.Handle(data.method, "/bcc/:bid", NewHandler(DelBcc, env))
+			req, err = request(data.method, "/bcc/"+data.values.Get("id"), strings.NewReader(data.values.Encode()))
+		}
+
+		if err != nil {
+			t.Errorf(err.Error())
+		}
+
+		if data.code == 200 {
+			if data.method == "POST" {
+				mock.ExpectExec("^INSERT INTO.+bcc.+VALUES").WithArgs(
+					data.values.Get("sender"),
+					data.values.Get("recipient"),
+					data.values.Get("copy"),
+					data.values.Get("comment"),
+				).WillReturnResult(sqlmock.NewResult(1, 0))
+			} else if data.method == "PUT" {
+				id, _ := strconv.ParseInt(data.values.Get("id"), 10, 64)
+				mock.ExpectExec("^UPDATE.+bcc.+SET.+WHERE").WithArgs(
+					data.values.Get("sender"),
+					data.values.Get("recipient"),
+					data.values.Get("copy"),
+					data.values.Get("comment"),
+					id,
+				).WillReturnResult(sqlmock.NewResult(0, 1))
+			} else if data.method == "DELETE" {
+				id, _ := strconv.ParseInt(data.values.Get("id"), 10, 64)
+				mock.ExpectExec("^DELETE.+FROM.+bcc.+WHERE").WithArgs(
+					id,
+				).WillReturnResult(sqlmock.NewResult(0, 1))
+			}
+		}
+
+		router.ServeHTTP(w, req)
+
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Errorf(err.Error())
+		}
+
+		if w.Code != data.code {
+			t.Errorf("Unexpected code was returned code=%d, body=%s", w.Code, w.Body)
+		}
+	}
+}

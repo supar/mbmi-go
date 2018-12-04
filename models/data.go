@@ -25,6 +25,8 @@ type Datastore interface {
 	ServicesStat(FilterIface, bool) ([]*Stat, uint64, error)
 	Accesses(FilterIface, bool) ([]*Access, uint64, error)
 	Bccs(FilterIface, bool) ([]*BccItem, uint64, error)
+	SetBcc(*BccItem) error
+	DelBcc(int64) error
 }
 
 type Debug func(v ...interface{})
