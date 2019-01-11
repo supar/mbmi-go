@@ -278,6 +278,116 @@ func SetUser(r *http.Request, env Enviroment) ResponseIface {
 	return NewResponse(nil)
 }
 
+func DelUser(r *http.Request, env Enviroment) ResponseIface {
+	var (
+		email models.Email
+		uid   int64
+		err   error
+		flt   models.FilterIface
+
+		id     = r.Context().Value("Id")
+		params = r.Context().Value("Params").(routerParams)
+	)
+
+	// Check
+	if uid, err = strconv.ParseInt(params.ByName("uid"), 10, 64); err != nil || uid < 1 {
+		if err == nil {
+			err = errors.New("Invalid record id")
+		}
+
+		env.Error("%s: %s (id=%d)", id, err.Error(), uid)
+
+		return NewResponse(&Error{
+			Code:    500,
+			Message: err.Error(),
+			Title:   http.StatusText(500),
+		})
+	}
+
+	// Get user email
+	flt = models.NewFilter().Where("id", uid)
+	if u, _, e := env.Users(flt, false); e != nil {
+		env.Error("%s: %s", id, e.Error())
+
+		return NewResponse(&Error{
+			Code:    500,
+			Message: "Cannot fetch user from database",
+			Title:   http.StatusText(500),
+		})
+	} else {
+		if l := len(u); l != 1 {
+			env.Error("%s: Can't find user with id=(%d)", id, uid)
+
+			return NewResponse(&Error{
+				Code:    404,
+				Message: http.StatusText(404),
+				Title:   http.StatusText(404),
+			})
+		}
+		email = u[0].Email
+	}
+
+	// Test Bcc
+	flt = models.NewFilter().Where("copy", email)
+	if _, count, e := env.Bccs(flt, true); e != nil || count > 0 {
+		if e != nil {
+			env.Error("%s: %s", id, e.Error())
+
+			return NewResponse(&Error{
+				Code:    500,
+				Message: "Cannot fetch bcc item from database",
+				Title:   http.StatusText(500),
+			})
+		}
+
+		if count > 0 {
+			env.Error("%s: found %d copy destinations in bcc with email %s", id, count, email)
+
+			return NewResponse(&Error{
+				Code:    500,
+				Message: "Cannot remove user, email used as bcc copy recipient",
+				Title:   http.StatusText(500),
+			})
+		}
+	}
+
+	// Test Alias
+	flt = models.NewFilter().Where("recipient", email)
+	if _, count, e := env.Aliases(flt, true); e != nil || count > 0 {
+		if e != nil {
+			env.Error("%s: %s", id, e.Error())
+
+			return NewResponse(&Error{
+				Code:    500,
+				Message: "Cannot alias item from database",
+				Title:   http.StatusText(500),
+			})
+		}
+
+		if count > 0 {
+			env.Error("%s: found %d recipients in aliases with email %s", id, count, email)
+
+			return NewResponse(&Error{
+				Code:    500,
+				Message: "Cannot remove user, email used in the aliases as recipient",
+				Title:   http.StatusText(500),
+			})
+		}
+	}
+
+	if err = env.DelUser(uid); err != nil {
+		env.Error("%s: %s", id, err.Error())
+
+		return NewResponse(&Error{
+			Code:    500,
+			Message: "Cannot remove user data",
+			Title:   http.StatusText(500),
+		})
+	}
+
+	return NewResponse(nil)
+}
+
 // GetUserJWT returns user JWT and updates secret
 func GetUserJWT(r *http.Request, env Enviroment) ResponseIface {
 	var (
