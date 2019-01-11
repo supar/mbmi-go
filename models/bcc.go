@@ -81,7 +81,7 @@ func (s *DB) Bccs(flt FilterIface, cnt bool) (m []*BccItem, count uint64, err er
 		return nil, 0, err
 	}
 
-	if cnt {
+	if cnt && len(m) > 0 {
 		query.raw = "SELECT COUNT(*) " +
 			"FROM `bcc` AS `b` "
 

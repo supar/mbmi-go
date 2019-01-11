@@ -78,7 +78,7 @@ func (s *DB) Aliases(flt FilterIface, cnt bool) (m []*Alias, count uint64, err e
 		return nil, 0, err
 	}
 
-	if cnt {
+	if cnt && len(m) > 0 {
 		query.raw = "SELECT COUNT(*) " +
 			"FROM `aliases` AS `a` "
 
