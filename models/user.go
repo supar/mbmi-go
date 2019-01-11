@@ -204,6 +204,12 @@ func (s *DB) SetUser(user *User) (err error) {
 	return
 }
 
+func (s *DB) DelUser(id int64) (err error) {
+	_, err = s.Exec("DELETE FROM `users` WHERE `id` = ?", id)
+
+	return
+}
+
 // SetUserSecret updates user token secret
 func (s *DB) SetUserSecret(user *User) (err error) {
 	_, err = s.Exec("UPDATE `users` SET "+
