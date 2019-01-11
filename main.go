@@ -141,6 +141,10 @@ func main() {
 		Protect(SetUser),
 		env,
 	))
+	router.Handle("DELETE", "/user/:uid", NewHandler(
+		Protect(DelUser),
+		env,
+	))
 	router.Handle("GET", "/password", NewHandler(
 		Protect(Password),
 		env,
