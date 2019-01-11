@@ -20,6 +20,7 @@ type Datastore interface {
 	Transports(FilterIface, bool) ([]*Transport, uint64, error)
 	MailSearch(FilterIface, bool) ([]string, uint64, error)
 	SetUser(*User) error
+	DelUser(int64) error
 	SetUserSecret(*User) error
 	SetStatImapLogin(*Stat) error
 	ServicesStat(FilterIface, bool) ([]*Stat, uint64, error)
