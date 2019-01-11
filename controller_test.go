@@ -1209,3 +1209,154 @@ func Test_InsertUpdateDeleteBccItem(t *testing.T) {
 		}
 	}
 }
+
+func Test_DeleteUser(t *testing.T) {
+	db, mock := initDBMock(t)
+	env := initTestBus(t, true)
+
+	users := []Tmock{
+		Tmock{
+			code:   200,
+			method: "DELETE",
+			values: url.Values(map[string][]string{
+				"id": []string{"1"},
+			}),
+		},
+		Tmock{
+			code:   500,
+			method: "DELETE",
+			values: url.Values(map[string][]string{
+				"id": []string{"1"},
+			}),
+		},
+		Tmock{
+			code:   500,
+			method: "DELETE",
+			values: url.Values(map[string][]string{
+				"id": []string{"1"},
+			}),
+		},
+	}
+
+	if err := env.openDB(db); err != nil {
+		t.Error(err)
+	}
+
+	for uidx, data := range users {
+		var req *http.Request
+
+		router := NewRouter()
+		w := httptest.NewRecorder()
+		router.Handle(data.method, "/user/:uid", NewHandler(DelUser, env))
+		req, _ = request(data.method, "/user/"+data.values.Get("id"), nil)
+
+		switch uidx {
+		case 0:
+			urows := sqlmock.NewRows([]string{
+				"id",
+				"name",
+				"login",
+				"domid",
+				"passwd",
+				"uid",
+				"gid",
+				"smtp",
+				"imap",
+				"pop3",
+				"sieve",
+				"manager",
+				"domainname",
+				"secret",
+				"token",
+			}).
+				AddRow(1, "Alert User Name", "alert", 1, "anypass", 8, 8, 1, 1, 0, 1, 1, "doamin.com", "", "")
+
+			mock.ExpectQuery("^SELECT.+FROM.+users").WillReturnRows(urows)
+			mock.ExpectQuery("^SELECT.+FROM.+bcc").WillReturnRows(sqlmock.NewRows([]string{}))
+			mock.ExpectQuery("^SELECT.+FROM.+aliases").WillReturnRows(sqlmock.NewRows([]string{}))
+			mock.ExpectExec("^DELETE FROM.+users.+WHERE").WillReturnResult(sqlmock.NewResult(0, 1))
+
+		case 1:
+			urows := sqlmock.NewRows([]string{
+				"id",
+				"name",
+				"login",
+				"domid",
+				"passwd",
+				"uid",
+				"gid",
+				"smtp",
+				"imap",
+				"pop3",
+				"sieve",
+				"manager",
+				"domainname",
+				"secret",
+				"token",
+			}).
+				AddRow(1, "Alert User Name", "alert", 1, "anypass", 8, 8, 1, 1, 0, 1, 1, "doamin.com", "", "")
+
+			mock.ExpectQuery("^SELECT.+FROM.+users").WillReturnRows(urows)
+
+			brows := sqlmock.NewRows([]string{
+				"id",
+				"sender",
+				"recipient",
+				"copy",
+				"comment",
+			}).
+				AddRow(5, "foo@localhost", "", "alert@doamin.com", "")
+
+			bcount := sqlmock.NewRows([]string{"count"}).AddRow(1)
+
+			mock.ExpectQuery("^SELECT.+FROM.+bcc").WillReturnRows(brows)
+			mock.ExpectQuery("^SELECT.+COUNT.+FROM.+bcc").WillReturnRows(bcount)
+
+		case 2:
+			urows := sqlmock.NewRows([]string{
+				"id",
+				"name",
+				"login",
+				"domid",
+				"passwd",
+				"uid",
+				"gid",
+				"smtp",
+				"imap",
+				"pop3",
+				"sieve",
+				"manager",
+				"domainname",
+				"secret",
+				"token",
+			}).
+				AddRow(1, "Alert User Name", "alert", 1, "anypass", 8, 8, 1, 1, 0, 1, 1, "doamin.com", "", "")
+
+			mock.ExpectQuery("^SELECT.+FROM.+users").WillReturnRows(urows)
+			mock.ExpectQuery("^SELECT.+FROM.+bcc").WillReturnRows(sqlmock.NewRows([]string{}))
+
+			arows := sqlmock.NewRows([]string{
+				"id",
+				"alias",
+				"recipient",
+				"comment",
+			}).
+				AddRow(5, "foo@localhost", "alert@doamin.com", "")
+
+			acount := sqlmock.NewRows([]string{"count"}).AddRow(1)
+
+			mock.ExpectQuery("^SELECT.+FROM.+aliases").WillReturnRows(arows)
+			mock.ExpectQuery("^SELECT.+COUNT.+FROM.+aliases").WillReturnRows(acount)
+		}
+
+		router.ServeHTTP(w, req)
+
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Errorf(err.Error())
+		}
+
+		if w.Code != data.code {
+			t.Errorf("Unexpected code was returned code=%d, body=%s", w.Code, w.Body)
+		}
+	}
+}
